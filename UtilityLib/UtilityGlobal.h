@@ -241,16 +241,19 @@ static inline void SplitListShapes(QString ListName)
 	//////////////////////////////////////
 	for (int i = 0; i < ShapeList.size(); i++)
 	{
+		QDir dir(ShapeList[i].FileLocation + "/parts");
+		if (!dir.exists())
+			dir.mkdir(dir.absolutePath());
+		else if (dir.count() != 2)
+			continue;
+
 		QString location = ShapeList[i].FileLocation + "/model.obj";
 		SurfaceMeshModel * model = new SurfaceMeshModel(location);
-		model->read(location.toStdString());
+		if (!model->read(location.toStdString()))
+			continue;
 		model->update_face_normals();
 		model->update_vertex_normals();
 		std::vector< SurfaceMesh::SurfaceMeshModel* > parts = connectedPieces(model);
-
-		QDir dir(ShapeList[i].FileLocation+"/parts");
-		if (!dir.exists())
-			dir.mkdir(dir.absolutePath());
 
 		for (int j = 0; j < parts.size(); j++)
 		{
