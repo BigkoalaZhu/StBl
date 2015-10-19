@@ -11,8 +11,8 @@ CONFIG(debug, debug|release) {
 }
 
 #PartGraph library
-LIBS += -L$$PWD/../PartGraph/$$CFG/lib -lPartGraph
-INCLUDEPATH += ../PartGraph
+LIBS += -L$$PWD/../PartGraphLib/$$CFG/lib -lPartGraphLib
+INCLUDEPATH += ../PartGraphLib
 
 # UtilityLib library
 LIBS += -L$$PWD/../UtilityLib/$$CFG -lUtilityLib
