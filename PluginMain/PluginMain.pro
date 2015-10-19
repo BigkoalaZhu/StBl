@@ -10,9 +10,9 @@ CONFIG(debug, debug|release) {
     CFG = release
 }
 
-# StructureGraph library
-# LIBS += -L$$PWD/../StructureGraphLib/$$CFG/lib -lStructureGraphLib
-# INCLUDEPATH += ../StructureGraphLib
+#PartGraph library
+LIBS += -L$$PWD/../PartGraphLib/$$CFG/lib -lPartGraphLib
+INCLUDEPATH += ../PartGraphLib
 
 # UtilityLib library
 LIBS += -L$$PWD/../UtilityLib/$$CFG -lUtilityLib

@@ -266,6 +266,8 @@ static inline void SplitListShapes(QString ListName)
 		}
 	}
 	///////////////////////////Generate load List
+	path.chop(1);
+	path.append(".list");
 	QFile outputList(ListName);
 	if (!file.open(QFile::ReadOnly | QFile::Text)) return;
 	QTextStream out(&outputList);
