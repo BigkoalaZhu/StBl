@@ -237,6 +237,7 @@ static inline void SplitListShapes(QString ListName)
 		ShapeList.push_back(tmp);
 		line = in.readLine();
 	}
+	file.close();
 	//////////////////////////////////////
 	for (int i = 0; i < ShapeList.size(); i++)
 	{
@@ -261,6 +262,19 @@ static inline void SplitListShapes(QString ListName)
 			writeOBJ::wirte(parts[j], index);
 		}
 	}
+	///////////////////////////Generate load List
+	QFile outputList(ListName);
+	if (!file.open(QFile::ReadOnly | QFile::Text)) return;
+	QTextStream out(&outputList);
+	for (int i = 0; i < ShapeList.size(); i++)
+	{
+		out << ShapeList[i].FileLocation << ";;";
+		out << ShapeList[i].FileDescriptor << ";;";
+		out << ShapeList[i].FrontDirection[0] << "\\," << ShapeList[i].FrontDirection[1] << "\\," << ShapeList[i].FrontDirection[2] << ";;";;
+		out << ShapeList[i].UpDirection[0] << "\\," << ShapeList[i].UpDirection[1] << "\\," << ShapeList[i].UpDirection[2] << ";;";;
+		out << endl;
+	}
+	outputList.close();
 }
 
 #include "BasicTable.h"
