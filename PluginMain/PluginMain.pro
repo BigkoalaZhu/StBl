@@ -10,7 +10,7 @@ CONFIG(debug, debug|release) {
     CFG = release
 }
 
-#PartGraph library
+# PartGraph library
 LIBS += -L$$PWD/../PartGraphLib/$$CFG/lib -lPartGraphLib
 INCLUDEPATH += ../PartGraphLib
 

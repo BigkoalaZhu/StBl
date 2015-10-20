@@ -241,10 +241,16 @@ static inline void SplitListShapes(QString ListName)
 	//////////////////////////////////////
 	for (int i = 0; i < ShapeList.size(); i++)
 	{
-		QDir dir(ShapeList[i].FileLocation + "/parts");
+		//QDir dir(ShapeList[i].FileLocation + "/parts");
+		//if (!dir.exists())
+		//	dir.mkdir(dir.absolutePath());
+		//else if (dir.count() != 2)
+		//	continue;
+
+		QDir dir(ShapeList[i].FileLocation + "/seg.obj");
 		if (!dir.exists())
 			dir.mkdir(dir.absolutePath());
-		else if (dir.count() != 2)
+		else
 			continue;
 
 		QString location = ShapeList[i].FileLocation + "/model.obj";
@@ -257,19 +263,20 @@ static inline void SplitListShapes(QString ListName)
 
 		for (int j = 0; j < parts.size(); j++)
 		{
-			QString index = dir.absolutePath() + "/part_" + QString::number(j) + ".obj";
+//			QString index = dir.absolutePath() + "/part_" + QString::number(j) + ".obj";
 			//////////////
 			//////////////
 			parts[j]->update_face_normals();
 			parts[j]->update_vertex_normals();
-			writeOBJ::wirte(parts[j], index);
+//			writeOBJ::wirte(parts[j], index);
 		}
+		writeOBJ::wirte(parts, dir.absolutePath()+"seg.obj");
 	}
 	///////////////////////////Generate load List
 	path.chop(1);
 	path.append(".list");
 	QFile outputList(ListName);
-	if (!file.open(QFile::ReadOnly | QFile::Text)) return;
+	if (!outputList.open(QIODevice::WriteOnly | QFile::Text)) return;
 	QTextStream out(&outputList);
 	for (int i = 0; i < ShapeList.size(); i++)
 	{

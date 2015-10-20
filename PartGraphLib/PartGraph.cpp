@@ -11,17 +11,11 @@
 #include "PartGraph.h"
 using namespace Structure;
 
-#include "GraphDistance.h"
-
-#include "Synthesizer.h"
-
 #include "GraphEmbed.h"
 #include "GraphDraw2D.h"
 #include "GenericGraph.h"
 
 #include "QuickMeshDraw.h"
-
-#include "Task.h"
 
 #include "../NURBS/LineSegment.h"
 
@@ -116,13 +110,6 @@ Eigen::AlignedBox3d Graph::bbox(bool isSkipUnready)
 		if( isSkipUnready )
 		{
 			if(getEdges(n->id).isEmpty()) continue;
-			
-			Task * t = n->property["task"].value<Task*>();
-			if( t )
-			{
-				if(t->type == Task::GROW && !t->isReady) continue;
-				if(t->type == Task::SHRINK && !t->isDone) continue;
-			}
 		}
 
         box = box.merged( n->bbox() );
@@ -510,18 +497,6 @@ void Graph::draw( QGLViewer * drawArea )
 		if ( n->property["shrunk"].toBool() || n->property["zeroGeometry"].toBool() )
 			continue;
 
-		if (property["showCurveFrames"].toBool())
-		{
-			if (n->property.contains("rmf_frames"))
-			{
-				std::vector<RMF::Frame> frames = n->property["rmf_frames"].value< std::vector<RMF::Frame> >();
-                starlab::FrameSoup fs(0.05f);
-				foreach (RMF::Frame f, frames)
-					fs.addFrame(f.r, f.s, f.t, f.center);
-				fs.draw();
-			}
-		}
-
 		if( !property.contains("reconMesh") )
 		{
 			// Draw node mesh
@@ -543,99 +518,6 @@ void Graph::draw( QGLViewer * drawArea )
 					QuickMeshDraw::drawMeshSolid( nodeMesh.data(), meshColor );
 					glEnable(GL_DEPTH_TEST);
 				}
-			}
-		}
-
-		// Task visualization:
-		if( property["showTasks"].toBool() )
-		{
-			// Morph-time coloring
-			if( n->property.contains("isActive")  )
-			{
-				if(n->property["isActive"].toBool())
-					n->vis_property["color"] = QColor(150,150,255);
-				else
-					n->vis_property["color"] = QColor(150,255,150);
-			}
-
-			glDisable(GL_LIGHTING);
-
-			if( n->property["isActive"].toBool() )
-			{
-                if( n->property.contains("consistentFrame") )
-                {
-                    RMF consistentFrame = n->property["consistentFrame"].value<RMF>();
-                    starlab::FrameSoup fs(0.02f);
-                    foreach(RMF::Frame f, consistentFrame.U) fs.addFrame(f.r, f.s, f.t, f.center);
-                    fs.draw();
-                }
-
-				if( n->property.contains("rmf") )
-				{
-					RMF rmf = n->property["rmf"].value<RMF>();
-                    starlab::FrameSoup fs(0.01f);
-					foreach(RMF::Frame f, rmf.U) fs.addFrame(f.r, f.s, f.t, f.center);
-					fs.draw();
-				}
-
-				if( n->property.contains("rmf2") )
-				{
-					RMF rmf = n->property["rmf2"].value<RMF>();
-                    starlab::FrameSoup fs(0.01f);
-					foreach(RMF::Frame f, rmf.U) fs.addFrame(f.r, f.s, f.t, f.center);
-					fs.draw();
-				}
-
-				if( n->property.contains("frame") )
-				{
-					RMF::Frame f = n->property["frame"].value<RMF::Frame>();
-                    starlab::FrameSoup fs(0.01f);
-					fs.addFrame(f.r, f.s, f.t, Vector3(n->bbox().center()) );
-					fs.draw();
-				}
-
-				if( n->property.contains("frame2") )
-				{
-					RMF::Frame f = n->property["frame2"].value<RMF::Frame>();
-                    starlab::FrameSoup fs(0.01f);
-					fs.addFrame(f.r, f.s, f.t, Vector3(n->bbox().center()) );
-					fs.draw();
-				}
-
-
-				// For edges
-				foreach(Structure::Link * l, edges)
-				{
-					if( l->property.contains("path") )
-					{
-						Array1D_Vector3 path;
-						if (!l->property.contains("CachedPath"))
-						{
-							QVector< GraphDistance::PathPointPair > pathRelative = l->property["path"].value< QVector< GraphDistance::PathPointPair > >();
-							if(!pathRelative.size()) continue;
-
-							path = GraphDistance::positionalPath(this, pathRelative);
-							l->property["CachedPath"].setValue(path);
-						}
-						else
-							path = l->property["CachedPath"].value<Array1D_Vector3>();
-
-                        starlab::PointSoup ps(10);
-                        starlab::LineSegments ls;
-						Vector3d lastP = path.front();
-						foreach(Vector3 p, path)
-						{
-							ps.addPoint(p, Qt::green);
-							ls.addLine(lastP, p, QColor(255,255,255,100));
-							lastP = p;
-						}
-						ps.draw();
-						ls.draw();
-					}
-				}
-
-				glEnable(GL_LIGHTING);
-
 			}
 		}
 
@@ -673,7 +555,7 @@ void Graph::draw( QGLViewer * drawArea )
 
 			if(property.contains("posX")) position[0] += property["posX"].toDouble();
 
-			Vec proj = drawArea->camera()->projectedCoordinatesOf(Vec(position.x(), position.y(), position.z()));
+			qglviewer::Vec proj = drawArea->camera()->projectedCoordinatesOf(qglviewer::Vec(position.x(), position.y(), position.z()));
 			drawArea->renderText(proj.x,proj.y,n->id);
 		}
 	}
@@ -2302,124 +2184,4 @@ void Graph::setAllControlPoints(Array2D_Vector3 all_points)
 
         n->setControlPoints(all_points[idx++]);
     }
-}
-
-Structure::Graph * Graph::actualGraph(Structure::Graph * fromGraph)
-{
-	Graph * actual = new Graph(*fromGraph);
-
-	bool stillCleaning = true;
-
-	while( stillCleaning )
-	{
-		stillCleaning = false;
-
-		foreach(Node* n, actual->nodes)
-		{
-			QVector<Link*> edges = actual->getEdges(n->id);
-
-			// Skip disconnected
-			if(edges.size() == 0) continue;
-
-			// Get type of task on this node
-			if(!n->property.contains("taskTypeReal")) continue;
-			int taskType = n->property["taskTypeReal"].toInt();
-
-			// Real morph tasks are not topology altering
-			if(taskType == Task::MORPH) continue;
-
-			// Cases:
-			//	Nodes that finished shrinking or 
-			//	have not yet grown or
-			//	Going to split
-			bool isShrinking = taskType == Task::SHRINK && n->property["taskIsDone"].toBool();
-			bool isGrowing = taskType == Task::GROW && !n->property["taskIsReady"].toBool();
-			bool isSpliting = taskType == Task::SPLIT && !n->property["taskIsReady"].toBool();
-
-			if( isShrinking || isGrowing || isSpliting )
-			{
-				/// Transfer edges to someone else:
-				if( !isSpliting )
-				{
-					// Look at neighbours valence
-					QMap<int, Node*> valMap;
-					foreach(Link* e, edges){
-						Node * j = e->otherNode(n->id);
-						valMap[actual->valence(j)] = j;
-					}
-
-					// Move my edges to my replacment
-					Node* replacment = valMap[valMap.keys().back()];
-					foreach(Link* e, edges)
-					{
-						QString otherID = e->otherNode(n->id)->id;
-						if(otherID == replacment->id) continue;
-						if(actual->shareEdge(otherID, replacment->id)) continue;
-
-						Vec4d c(0,0,0,0);
-
-						// More accurate but too slow..
-						//Vec4d c = replacment->approxCoordinates( replacment->approxProjection(e->position(n->id)) );
-
-						if(replacment->type() == Structure::CURVE)
-						{
-							double t = ((Structure::Curve*)replacment)->curve.fastTimeAt(e->position(n->id));
-							c = Vec4d(t,0,0,0);
-						}
-						else
-						{
-							c = ((Structure::Sheet*)replacment)->surface.fastTimeAt(e->position(n->id));
-						}
-
-						Array1D_Vector4d coord(1, c);
-
-						e->replace(n->id, replacment, coord);
-					}
-				}
-
-				foreach(Link* e, actual->getEdges(n->id))
-				{
-					actual->removeEdge(e->n1, e->n2);
-				}
-
-				if( isSpliting )
-				{
-					QString siblingKeep;
-					QVector<QString> siblings = actual->groupsOf(n->id).back();
-
-					// Change one sibling in order to keep it
-					foreach(QString nid, siblings)
-					{
-						if(nid == n->id) continue;
-						
-						// Override the chosen one
-						actual->getNode(nid)->property["taskTypeReal"] = Task::MORPH;
-						actual->removeGroup(siblings);
-						break;
-					}
-				}
-
-				stillCleaning = true;
-
-				break;
-			}
-		}
-	}
-
-	// Remove edges kept after a merge
-	QVector<Link*> toRemove;
-	foreach(Link * link, actual->edges){
-		if(link->property["mergedEdge"].toBool())
-			toRemove.push_back(link);
-	}
-	foreach(Link * link, toRemove){
-		actual->removeEdge( link->property["uid"].toInt() );
-	}
-
-	// Remove any disconnected nodes
-	QVector<QString> nodesToRemove;
-	foreach(Node * n, actual->nodes) if(actual->getEdges(n->id).size() == 0) nodesToRemove.push_back(n->id);
-	foreach(QString nid, nodesToRemove) actual->removeNode(nid);
-
-	return actual;
 }

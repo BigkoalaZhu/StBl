@@ -44,6 +44,7 @@ public slots:
     void LoadSingleObject();
 	void LoadSingleObjectSplit();
 	void LoadListSplit();
+	void Filtering();
 };
 
 

@@ -11,6 +11,7 @@ stbl_widget::stbl_widget(structureblending_mode * m) : ui(new Ui::stbl_widget)
 	mode->connect(ui->LoadSingle, SIGNAL(clicked()), SLOT(LoadSingleObject()));
 	mode->connect(ui->SplitSingle, SIGNAL(clicked()), SLOT(LoadSingleObjectSplit()));
 	mode->connect(ui->SplitList, SIGNAL(clicked()), SLOT(LoadListSplit()));
+	mode->connect(ui->Filtering, SIGNAL(clicked()), SLOT(Filtering()));
 }
 
 stbl_widget::~stbl_widget()

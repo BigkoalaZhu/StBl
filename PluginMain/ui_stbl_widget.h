@@ -38,6 +38,7 @@ public:
     QFormLayout *formLayout_3;
     QPushButton *SplitSingle;
     QPushButton *SplitList;
+    QPushButton *Filtering;
 
     void setupUi(QWidget *stbl_widget)
     {
@@ -84,6 +85,11 @@ public:
 
         formLayout_3->setWidget(1, QFormLayout::SpanningRole, SplitList);
 
+        Filtering = new QPushButton(SS);
+        Filtering->setObjectName(QStringLiteral("Filtering"));
+
+        formLayout_3->setWidget(2, QFormLayout::SpanningRole, Filtering);
+
         tabWidget->addTab(SS, QString());
 
         verticalLayout->addWidget(tabWidget);
@@ -105,6 +111,7 @@ public:
         tabWidget->setTabText(tabWidget->indexOf(Obj2Graph), QApplication::translate("stbl_widget", "Object To Graph", 0));
         SplitSingle->setText(QApplication::translate("stbl_widget", "Load single shape and split", 0));
         SplitList->setText(QApplication::translate("stbl_widget", "Load a List to split", 0));
+        Filtering->setText(QApplication::translate("stbl_widget", "Filter files", 0));
         tabWidget->setTabText(tabWidget->indexOf(SS), QApplication::translate("stbl_widget", "Split Shapes", 0));
     } // retranslateUi
 

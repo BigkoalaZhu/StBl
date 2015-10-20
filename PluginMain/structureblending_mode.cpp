@@ -134,3 +134,89 @@ void structureblending_mode::LoadListSplit()
 		SplitListShapes(filenames[0]);
 	}
 }
+
+void structureblending_mode::Filtering()
+{
+	QFileDialog dialog(mainWindow());
+	dialog.setDirectory(QDir::currentPath());
+	dialog.setFileMode(QFileDialog::DirectoryOnly);
+
+	if (dialog.exec())
+	{
+		QStringList filenames = dialog.selectedFiles();
+		////////////////////////////
+		QString PathName = filenames[0];
+		PathName.append(".csv");
+		QVector<ShapeNetModelInfo> ShapeList;
+		ShapeNetModelInfo tmp;
+		QString path = filenames[0];
+		path.append("/");
+
+		QFile file(PathName);
+		if (!file.open(QFile::ReadOnly | QFile::Text)) return;
+		QTextStream in(&file);
+		QString line = in.readLine();
+		line = in.readLine();
+		while (!line.isNull()) {
+			QVector<QString> wholeline;
+			wholeline.resize(6);
+			int index = 0;
+			int head = 0;
+			bool status = true;
+			for (int i = 0; i < line.length(); i++)
+			{
+				if (line.at(i) == ',' && status)
+				{
+					wholeline[index] = line.mid(head, i - head);
+					head = i + 1;
+					index++;
+				}
+				else if (line.at(i) == '\"')
+					status = !status;
+			}
+
+			tmp.FileDescriptor = wholeline[2];
+			tmp.FileDescriptor.remove("\"");
+			tmp.FileLocation = wholeline[0];
+			tmp.FileLocation.remove("3dw.");
+			tmp.FileLocation.prepend(path);
+			wholeline[3].remove("\"");
+			wholeline[4].remove("\"");
+			tmp.FrontDirection = QStringToVector3d(wholeline[4]);
+			tmp.UpDirection = QStringToVector3d(wholeline[3]);
+			ShapeList.push_back(tmp);
+			line = in.readLine();
+		}
+		file.close();
+		//////////////////////////////////////
+		QVector<int> Names;
+		for (int i = 0; i < ShapeList.size(); i++)
+		{
+			QString DirName = ShapeList[i].FileLocation;
+			DirName.append("/parts");
+
+			QDir SubDir(DirName);
+			if (SubDir.count()>3 && SubDir.count() < 30)
+				Names.push_back(i);
+		}
+
+		QString ListName = filenames[0];
+		ListName.append("/validmodels.list");
+
+		QMessageBox message(QMessageBox::Warning, "Warning", ListName, QMessageBox::Ok, NULL);
+		message.exec();
+
+		QFile outputList(ListName);
+		if (!outputList.open(QIODevice::WriteOnly | QFile::Text)) return;
+		QTextStream out(&outputList);
+		for (int i = 0; i < Names.size(); i++)
+		{
+			out << ShapeList[Names[i]].FileLocation << ";;";
+			out << ShapeList[Names[i]].FileDescriptor << ";;";
+			out << ShapeList[Names[i]].FrontDirection[0] << "\\," << ShapeList[Names[i]].FrontDirection[1] << "\\," << ShapeList[Names[i]].FrontDirection[2] << ";;";;
+			out << ShapeList[Names[i]].UpDirection[0] << "\\," << ShapeList[Names[i]].UpDirection[1] << "\\," << ShapeList[Names[i]].UpDirection[2] << ";;";;
+			out << endl;
+		}
+		outputList.close();
+	}
+}

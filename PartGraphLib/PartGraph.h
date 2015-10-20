@@ -101,9 +101,6 @@ namespace Structure{
 
 		void exportAsOBJ( QString filename );
 
-		// TopoBlend related
-		static Structure::Graph * actualGraph(Structure::Graph * fromGraph);
-
 		// Visualization
 		void draw( QGLViewer * drawArea = 0 );
 		void drawAABB();
@@ -169,3 +166,4 @@ namespace Structure{
 Q_DECLARE_METATYPE( QSharedPointer<SurfaceMeshModel> )
 Q_DECLARE_METATYPE( Structure::Graph * )
 Q_DECLARE_METATYPE( Structure::NodeGroups )
+Q_DECLARE_METATYPE( SurfaceMesh::Vector3 )
