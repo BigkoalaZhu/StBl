@@ -4,17 +4,16 @@ include($$[SURFACEMESH])
 QT += gui opengl xml svg
 
 TEMPLATE = lib
-CONFIG += staticlib
+CONFIG += dynamiclib
 
 # Build options
 CONFIG(debug, debug|release) {CFG = debug} else {CFG = release}
 
 # rapid
-LIBS += -L$$PWD/rapid-2013/lib/$$CFG/ -lRAPID
-INCLUDEPATH += rapid-2013/inc
+#LIBS += -L$$PWD/rapid-2013/lib/$$CFG/ -lRAPID
+#INCLUDEPATH += rapid-2013/inc
 
 HEADERS += \
-    Detect_collision.h \
     QuickMeshDraw.h \
     Sampler.h \
     OrientHelper.h \
@@ -24,7 +23,6 @@ HEADERS += \
 	writeOBJ.h \
 	
 SOURCES += \
-    Detect_collision.cpp \
     Sampler.cpp \	
     OrientHelper.cpp \
     SegMeshLoader.cpp \
