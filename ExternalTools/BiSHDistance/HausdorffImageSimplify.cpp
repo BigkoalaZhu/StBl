@@ -585,6 +585,19 @@ void HausdorffImageSimplify::saveNodeInfo()
 	nodefile.close();
 }
 
+void HausdorffImageSimplify::saveNodeInfoSpecific(string filename)
+{
+	ofstream nodefile(filename.c_str());
+	for (int i = 0; i<m_nodes.size(); i++)
+	{
+		nodefile << m_nodes[i].start << '\t' << m_nodes[i].end << '\t' << m_nodes[i].height << '\t' << m_nodes[i].line.size() << endl;
+		for (int j = 0; j<m_nodes[i].line.size(); j++)
+			nodefile << m_nodes[i].line[j] << ' ';
+		nodefile << endl;
+	}
+	nodefile.close();
+}
+
 
 vector<HausdorffNode> HausdorffImageSimplify::loadNodeInfo(string nodefile)
 {

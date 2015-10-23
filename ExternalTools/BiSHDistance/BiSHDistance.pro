@@ -33,6 +33,7 @@ HEADERS += \
 	HausdorffNode.h \
 	SColorMap.h \
 	utility.h \
+	BiSHDist.h \
 
 SOURCES += \
     HausdorffDist.cpp \

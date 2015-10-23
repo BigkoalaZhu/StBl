@@ -22,6 +22,7 @@ public:
 	vector<HausdorffNode> getNodes(){return m_nodes;}
 	void saveSegmentImg(string name=string());
 	void saveNodeInfo();
+	void saveNodeInfoSpecific(string filename);
 
 	vector<HausdorffNode> loadNodeInfo(string nodefile);
 private:
