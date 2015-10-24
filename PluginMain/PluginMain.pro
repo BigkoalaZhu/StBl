@@ -18,9 +18,13 @@ INCLUDEPATH += ../PartGraphLib
 LIBS += -L$$PWD/../UtilityLib/$$CFG -lUtilityLib
 INCLUDEPATH += ../UtilityLib
 
-# ThreadsGraphLib library
-#LIBS += -L$$PWD/../ThreadsGraphLib/$$CFG -lThreadsGraphLib
-#INCLUDEPATH += ../ThreadsGraphLib
+# OpenCV
+CONFIG(debug, debug|release) {
+    LIBS += -L$(OPENCV_LIB) -lopencv_ts300d -lopencv_world300d
+} else {
+    LIBS += -L$(OPENCV_LIB) -lopencv_ts300 -lopencv_world300
+}
+INCLUDEPATH += $(OPENCV_INC)
 
 HEADERS += \
     structureblending_mode.h \

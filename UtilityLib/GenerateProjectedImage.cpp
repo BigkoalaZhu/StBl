@@ -1,11 +1,11 @@
 #include "GenerateProjectedImage.h"
+#include "Colormap.h"
 #include <QFile>
 #include <QDir>
 
-GenerateProjectedImage::GenerateProjectedImage(SurfaceMesh::SurfaceMeshModel* mesh, QString dir, int num)
+GenerateProjectedImage::GenerateProjectedImage(SurfaceMesh::SurfaceMeshModel* mesh, QString dir)
 {
 	model = mesh;
-	camera_num = num;
 	camera_path = dir;
 
 	mesh->update_face_normals();
@@ -13,6 +13,11 @@ GenerateProjectedImage::GenerateProjectedImage(SurfaceMesh::SurfaceMeshModel* me
 	mesh->updateBoundingBox();
 
 	length = mesh->bbox().diagonal().norm();
+
+	colormap = makeColorMap();
+	LoadCameras();
+
+
 }
 
 
@@ -31,7 +36,8 @@ void GenerateProjectedImage::LoadCameras()
 	for (int i = 0; i < list.size(); ++i) 
 	{
 		QFileInfo fileInfo = list.at(i);
-		if (fileInfo.suffix() != "obj")
+		QString name = fileInfo.suffix();
+		if (fileInfo.suffix() != "OBJ")
 			continue;
 		SurfaceMesh::SurfaceMeshModel* mesh = new SurfaceMesh::SurfaceMeshModel;
 		mesh->read(fileInfo.absoluteFilePath().toStdString());
@@ -54,12 +60,15 @@ void GenerateProjectedImage::projectImage(int index, QString filename)
 {
 	int v_num = model->vertices_size();
 	int f_num = model->faces_size();
-	int Width = 512;
+	int Width = 1024;
 
 	Eigen::MatrixXd tmp = Eigen::MatrixXd::Zero(v_num, 3);
 	Eigen::MatrixXd result = Eigen::MatrixXd::Zero(v_num, 3);
 
 	Vector3VertexProperty points = model->vertex_property<Vector3>("v:point");
+	Vector3VertexProperty projected = model->add_vertex_property<Vector3>("v:projected");
+	
+
 	foreach(Vertex v, model->vertices())
 	{
 		Eigen::Vector3d vertex = points[v];
@@ -78,41 +87,51 @@ void GenerateProjectedImage::projectImage(int index, QString filename)
 	double offset_x = Width / 2.0f - boundaryC[0] / scale;
 	double offset_y = Width / 2.0f - boundaryC[1] / scale;
 
-	for (int j = 0; j < v_num; j++)
+	int index_j = 0;
+	double minz = 9999, maxz = -9999;
+	foreach(Vertex v, model->vertices())
 	{
-		result(j, 0) = tmp(j, 0) / scale + offset_x;
-		result(j, 1) = Width - tmp(j, 1) / scale - offset_y;
-		result(j, 2) = -tmp(j, 2) / scale;
+		projected[v] = Vector3(tmp(index_j, 0) / scale + offset_x, Width - tmp(index_j, 1) / scale - offset_y, -tmp(index_j, 2) / scale);
+		if (minz > projected[v][2])
+			minz = projected[v][2];
+		if (maxz < projected[v][2])
+			maxz = projected[v][2];
+		index_j++;
 	}
+	maxDepth = maxz;
+	minDepth = minz;
 
 	Eigen::VectorXi valid = Eigen::VectorXi::Ones(f_num);
 
 	CvMat *depthMap = cvCreateMat(Width, Width, CV_32FC1);
-	CvMat *labelMap = cvCreateMat(Width, Width, CV_32FC1);
 	IplImage* image = cvCreateImage(cvGetSize(depthMap), 8, 3);
 
 	for (int j = 0; j < Width*Width; j++)
 	{
 		depthMap->data.fl[j] = std::numeric_limits<float>::infinity();
-		labelMap->data.fl[j] = -1;
 		image->imageData[3 * j] = 255;
 		image->imageData[3 * j + 1] = 255;
 		image->imageData[3 * j + 2] = 255;
 	}
 
-	for (int j = 0; j < f_num; j++)
-	{
-		Eigen::Vector3d points[3];
-		Eigen::Vector3i c = colors[Labels(j)];
-		for (int k = 0; k < 3; k++)
+	Surface_mesh::Vertex_around_face_circulator fvit, fvend;
+	foreach(Face f, model->faces())
+	{		
+		Eigen::Vector3d p[3];
+		int v_index = 0;
+		fvit = fvend = model->vertices(f);
+		do
 		{
-			points[k] = result.row(FaceIndex(j, k));
-		}
-		sweepTriangle(depthMap, labelMap, Labels(j), points, c, image);
+			p[v_index] = projected[fvit];
+			v_index++;
+		} while (++fvit != fvend);
+		sweepTriangle(depthMap, p, image);
 	}
+
+	cvSaveImage(filename.toStdString().data(), image);
 }
 
-void GenerateProjectedImage::sweepTriangle(CvMat *depthMap, CvMat *labelMap, int label, Eigen::Vector3d *point, Eigen::Vector3i color, IplImage* I)
+void GenerateProjectedImage::sweepTriangle(CvMat *depthMap, Eigen::Vector3d *point, IplImage* I)
 {
 	int upMost, downMost;
 	bool updated = false;
@@ -143,7 +162,7 @@ void GenerateProjectedImage::sweepTriangle(CvMat *depthMap, CvMat *labelMap, int
 			if (dy1*dy2 <= 0)
 			{
 				margin_x[mIdx] = (dy2 - dy1 == 0) ? p1[0] : p1[0] - dy1 / (dy2 - dy1)*(p2[0] - p1[0]);
-				margin_z[mIdx] = (dy2 - dy1 == 0) ? p1[2] : ceil(p1[2] - dy1 / (dy2 - dy1)*(p2[2] - p1[2]));
+				margin_z[mIdx] = (dy2 - dy1 == 0) ? p1[2] : p1[2] - dy1 / (dy2 - dy1)*(p2[2] - p1[2]);
 				mIdx++;
 			}
 		}
@@ -155,11 +174,14 @@ void GenerateProjectedImage::sweepTriangle(CvMat *depthMap, CvMat *labelMap, int
 		{
 			if (depthMap->data.fl[y*depthMap->width + margin_x[0]] > margin_z[0])
 			{
+				//QColor color = getColorFromMap((margin_z[0] - minDepth)/(maxDepth - minDepth), colormap);
+				int d = 255 * (margin_z[0] - minDepth) / (maxDepth - minDepth);
+				QColor color(d, d, d);
+
 				depthMap->data.fl[y*depthMap->width + margin_x[0]] = margin_z[0];
-				labelMap->data.fl[y*labelMap->width + margin_x[0]] = label;
-				I->imageData[y*I->widthStep + 3 * margin_x[0]] = color[0];
-				I->imageData[y*I->widthStep + 3 * margin_x[0] + 1] = color[1];
-				I->imageData[y*I->widthStep + 3 * margin_x[0] + 2] = color[2];
+				I->imageData[y*I->widthStep + 3 * margin_x[0]] = color.red();
+				I->imageData[y*I->widthStep + 3 * margin_x[0] + 1] = color.green();
+				I->imageData[y*I->widthStep + 3 * margin_x[0] + 2] = color.blue();
 			}
 			continue;
 		}
@@ -167,18 +189,17 @@ void GenerateProjectedImage::sweepTriangle(CvMat *depthMap, CvMat *labelMap, int
 		int mx_e = (margin_x[0] >= margin_x[1]) ? margin_x[0] : margin_x[1];
 		for (int x = mx_s; x <= mx_e; x++)
 		{
-			float z = (margin_x[1] == margin_x[0]) ? margin_z[0] : margin_z[0] + (x - margin_x[0]) / (margin_x[1] - margin_x[0])*(margin_z[1] - margin_z[0]);
+			float z = margin_z[0] + float(x - margin_x[0]) / (margin_x[1] - margin_x[0])*(margin_z[1] - margin_z[0]);
 			if (depthMap->data.fl[y*depthMap->width + x] > z)
 			{
-				depthMap->data.fl[y*depthMap->width + x] = z;
-				I->imageData[y*I->widthStep + 3 * x] = color[0];
-				I->imageData[y*I->widthStep + 3 * x + 1] = color[1];
-				I->imageData[y*I->widthStep + 3 * x + 2] = color[2];
+				//QColor color = getColorFromMap((z - minDepth) / (maxDepth - minDepth), colormap);
+				int d = 255 * (z - minDepth) / (maxDepth - minDepth);
+				QColor color(d, d, d);
 
-				if (label != labelMap->data.fl[y*labelMap->width + x] && labelMap->data.fl[y*labelMap->width + x] >= 0)
-				{
-					labelMap->data.fl[y*labelMap->width + x] = label;
-				}
+				depthMap->data.fl[y*depthMap->width + x] = z;
+				I->imageData[y*I->widthStep + 3 * x] = color.red();
+				I->imageData[y*I->widthStep + 3 * x + 1] = color.green();
+				I->imageData[y*I->widthStep + 3 * x + 2] = color.blue();
 			}
 		}
 	}

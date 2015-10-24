@@ -2,6 +2,8 @@
 
 #include <qgl.h>
 #include "SurfaceMeshModel.h"
+#include "RenderObjectExt.h"
+using namespace SurfaceMesh;
 
 struct QuickMeshDraw{
 

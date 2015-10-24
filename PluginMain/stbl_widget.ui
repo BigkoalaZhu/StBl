@@ -17,7 +17,7 @@
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>1</number>
+      <number>2</number>
      </property>
      <widget class="QWidget" name="Obj2Graph">
       <attribute name="title">
@@ -72,6 +72,47 @@
         <widget class="QPushButton" name="Filtering">
          <property name="text">
           <string>Filter files</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="Project">
+      <attribute name="title">
+       <string>Project Image</string>
+      </attribute>
+      <layout class="QFormLayout" name="formLayout_4">
+       <property name="fieldGrowthPolicy">
+        <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+       </property>
+       <item row="1" column="0" colspan="2">
+        <widget class="QPushButton" name="LoadSigleMesh">
+         <property name="text">
+          <string>Load Single mesh to test</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLineEdit" name="cameraIndex"/>
+       </item>
+       <item row="2" column="1">
+        <widget class="QPushButton" name="GenSingleImage">
+         <property name="text">
+          <string>Generate image</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QLineEdit" name="cameraPath">
+         <property name="text">
+          <string>C:\Users\cza68\Documents\CodingWork\StructureBlending\c++code\StBl\UtilityLib\cameras</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="0">
+        <widget class="QLabel" name="label_2">
+         <property name="text">
+          <string>Camera File Path: </string>
          </property>
         </widget>
        </item>

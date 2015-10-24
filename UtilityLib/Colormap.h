@@ -83,7 +83,8 @@ inline QVector< QColor > makeColorMap()
 
 	QVector< QColor > result;
 	for(int i = 0; i < colorArray.size();){
-		QColor color(colorArray[i++], colorArray[i++], colorArray[i++]);
+		QColor color(colorArray[i], colorArray[i+1], colorArray[i+2]);
+		i += 3;
 		result.push_back(color);
 	}
 	return result;

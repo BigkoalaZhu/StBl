@@ -12,20 +12,22 @@ using namespace SurfaceMesh;
 class GenerateProjectedImage
 {
 public:
-	GenerateProjectedImage(SurfaceMesh::SurfaceMeshModel* mesh, QString dir, int num);
+	GenerateProjectedImage(SurfaceMesh::SurfaceMeshModel* mesh, QString dir);
 	~GenerateProjectedImage();
 
 	void projectImage(int index, QString filename);
 private:
 	void LoadCameras();
-	void GenerateProjectedImage::sweepTriangle(CvMat *depthMap, CvMat *labelMap, int label, Eigen::Vector3d *point, Eigen::Vector3i color, IplImage* I);
+	void GenerateProjectedImage::sweepTriangle(CvMat *depthMap, Eigen::Vector3d *point, IplImage* I);
 
 	SurfaceMesh::SurfaceMeshModel* model;
 
 	double length;
 	QString camera_path;
-	int camera_num;
 	std::vector<Eigen::Vector3d> camera_direction;
 	std::vector<Eigen::Vector3d> camera_up;
+
+	double maxDepth, minDepth;
+	QVector< QColor > colormap;
 };
 

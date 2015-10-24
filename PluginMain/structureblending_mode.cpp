@@ -23,6 +23,8 @@ void structureblending_mode::create()
         widget = new stbl_widget(this);
         dockwidget->setWidget(widget);
         mainWindow()->addDockWidget(Qt::RightDockWidgetArea,dockwidget);
+
+		CameraPath = "C:\\Users\\cza68\\Documents\\CodingWork\\StructureBlending\\c++code\\StBl\\UtilityLib\\cameras";
     }
 
     update();
@@ -219,4 +221,44 @@ void structureblending_mode::Filtering()
 		}
 		outputList.close();
 	}
+}
+
+void structureblending_mode::CameraPathChange(QString path)
+{
+	CameraPath = path;
+}
+
+void structureblending_mode::LoadSingleMesh()
+{
+	QFileDialog dialog(mainWindow());
+	dialog.setDirectory(QDir::currentPath());
+	dialog.setFileMode(QFileDialog::ExistingFiles);
+	dialog.setNameFilter(tr("OBJ Files (*.obj);; OFF Files (*.off)"));
+
+	if (dialog.exec())
+	{
+		QStringList filenames = dialog.selectedFiles();
+		Current_Single_Object = new SurfaceMeshModel(filenames[0]);
+		Current_Single_Object->read(filenames[0].toStdString());
+		Current_Single_Object->updateBoundingBox();
+		Current_Single_Object->update_face_normals();
+		Current_Single_Object->update_vertex_normals();
+
+		document()->clear();
+		document()->addModel(Current_Single_Object);
+
+		projectImage = new GenerateProjectedImage(Current_Single_Object, CameraPath);
+
+		drawArea()->updateGL();
+	}
+}
+
+void structureblending_mode::CameraIndexChange(QString index)
+{
+	CameraIndex = index.toInt();
+}
+
+void structureblending_mode::GenerateSingleImage()
+{
+	projectImage->projectImage(CameraIndex, "test.bmp");
 }

@@ -2,6 +2,7 @@
 #include "StarlabDrawArea.h"
 #include "SurfaceMeshPlugins.h"
 #include "SurfaceMeshHelper.h"
+#include "GenerateProjectedImage.h"
 
 #include "stbl_widget.h"
 
@@ -40,11 +41,20 @@ private:
 	Vector3VertexProperty points, src_points;
 	Vector3FaceProperty fnormals;
 
+	QString CameraPath;
+	GenerateProjectedImage * projectImage;
+	int CameraIndex;
+
 public slots:
     void LoadSingleObject();
 	void LoadSingleObjectSplit();
 	void LoadListSplit();
 	void Filtering();
+
+	void CameraPathChange(QString);
+	void LoadSingleMesh();
+	void CameraIndexChange(QString);
+	void GenerateSingleImage();
 };
 
 

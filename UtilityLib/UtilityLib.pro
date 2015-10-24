@@ -1,10 +1,14 @@
 include($$[STARLAB])
 include($$[SURFACEMESH])
+include($$[CHOLMOD])
+
+include($$[NANOFLANN])
+include($$[OCTREE])
 
 QT += gui opengl xml svg
 
 TEMPLATE = lib
-CONFIG += dynamiclib
+CONFIG += staticlib
 
 # Build options
 CONFIG(debug, debug|release) {CFG = debug} else {CFG = release}
@@ -30,6 +34,7 @@ HEADERS += \
 	Colormap.h \
 	writeOBJ.h \
 	GenerateProjectedImage.h \
+	IsotropicRemesher.h \
 	
 SOURCES += \
     Sampler.cpp \	

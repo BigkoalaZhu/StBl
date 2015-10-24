@@ -12,6 +12,11 @@ stbl_widget::stbl_widget(structureblending_mode * m) : ui(new Ui::stbl_widget)
 	mode->connect(ui->SplitSingle, SIGNAL(clicked()), SLOT(LoadSingleObjectSplit()));
 	mode->connect(ui->SplitList, SIGNAL(clicked()), SLOT(LoadListSplit()));
 	mode->connect(ui->Filtering, SIGNAL(clicked()), SLOT(Filtering()));
+
+	mode->connect(ui->GenSingleImage, SIGNAL(clicked()), SLOT(GenerateSingleImage()));
+	mode->connect(ui->LoadSigleMesh, SIGNAL(clicked()), SLOT(LoadSingleMesh()));
+	mode->connect(ui->cameraIndex, SIGNAL(textChanged(QString)), SLOT(CameraIndexChange(QString)));
+	mode->connect(ui->cameraPath, SIGNAL(textChanged(QString)), SLOT(CameraPathChange(QString)));
 }
 
 stbl_widget::~stbl_widget()

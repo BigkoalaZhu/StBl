@@ -39,6 +39,13 @@ public:
     QPushButton *SplitSingle;
     QPushButton *SplitList;
     QPushButton *Filtering;
+    QWidget *Project;
+    QFormLayout *formLayout_4;
+    QPushButton *LoadSigleMesh;
+    QLineEdit *cameraIndex;
+    QPushButton *GenSingleImage;
+    QLineEdit *cameraPath;
+    QLabel *label_2;
 
     void setupUi(QWidget *stbl_widget)
     {
@@ -91,13 +98,44 @@ public:
         formLayout_3->setWidget(2, QFormLayout::SpanningRole, Filtering);
 
         tabWidget->addTab(SS, QString());
+        Project = new QWidget();
+        Project->setObjectName(QStringLiteral("Project"));
+        formLayout_4 = new QFormLayout(Project);
+        formLayout_4->setObjectName(QStringLiteral("formLayout_4"));
+        formLayout_4->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+        LoadSigleMesh = new QPushButton(Project);
+        LoadSigleMesh->setObjectName(QStringLiteral("LoadSigleMesh"));
+
+        formLayout_4->setWidget(1, QFormLayout::SpanningRole, LoadSigleMesh);
+
+        cameraIndex = new QLineEdit(Project);
+        cameraIndex->setObjectName(QStringLiteral("cameraIndex"));
+
+        formLayout_4->setWidget(2, QFormLayout::LabelRole, cameraIndex);
+
+        GenSingleImage = new QPushButton(Project);
+        GenSingleImage->setObjectName(QStringLiteral("GenSingleImage"));
+
+        formLayout_4->setWidget(2, QFormLayout::FieldRole, GenSingleImage);
+
+        cameraPath = new QLineEdit(Project);
+        cameraPath->setObjectName(QStringLiteral("cameraPath"));
+
+        formLayout_4->setWidget(0, QFormLayout::FieldRole, cameraPath);
+
+        label_2 = new QLabel(Project);
+        label_2->setObjectName(QStringLiteral("label_2"));
+
+        formLayout_4->setWidget(0, QFormLayout::LabelRole, label_2);
+
+        tabWidget->addTab(Project, QString());
 
         verticalLayout->addWidget(tabWidget);
 
 
         retranslateUi(stbl_widget);
 
-        tabWidget->setCurrentIndex(1);
+        tabWidget->setCurrentIndex(2);
 
 
         QMetaObject::connectSlotsByName(stbl_widget);
@@ -113,6 +151,11 @@ public:
         SplitList->setText(QApplication::translate("stbl_widget", "Load a List to split", 0));
         Filtering->setText(QApplication::translate("stbl_widget", "Filter files", 0));
         tabWidget->setTabText(tabWidget->indexOf(SS), QApplication::translate("stbl_widget", "Split Shapes", 0));
+        LoadSigleMesh->setText(QApplication::translate("stbl_widget", "Load Single mesh to test", 0));
+        GenSingleImage->setText(QApplication::translate("stbl_widget", "Generate image", 0));
+        cameraPath->setText(QApplication::translate("stbl_widget", "C:\\Users\\cza68\\Documents\\CodingWork\\StructureBlending\\c++code\\StBl\\UtilityLib\\cameras", 0));
+        label_2->setText(QApplication::translate("stbl_widget", "Camera File Path: ", 0));
+        tabWidget->setTabText(tabWidget->indexOf(Project), QApplication::translate("stbl_widget", "Project Image", 0));
     } // retranslateUi
 
 };
