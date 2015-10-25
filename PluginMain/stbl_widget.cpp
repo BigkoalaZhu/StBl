@@ -17,6 +17,8 @@ stbl_widget::stbl_widget(structureblending_mode * m) : ui(new Ui::stbl_widget)
 	mode->connect(ui->LoadSigleMesh, SIGNAL(clicked()), SLOT(LoadSingleMesh()));
 	mode->connect(ui->cameraIndex, SIGNAL(textChanged(QString)), SLOT(CameraIndexChange(QString)));
 	mode->connect(ui->cameraPath, SIGNAL(textChanged(QString)), SLOT(CameraPathChange(QString)));
+	mode->connect(ui->LoadAList, SIGNAL(clicked()), SLOT(LoadAList2GenerateImages()));
+	
 }
 
 stbl_widget::~stbl_widget()

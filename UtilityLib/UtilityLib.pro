@@ -35,6 +35,7 @@ HEADERS += \
 	writeOBJ.h \
 	GenerateProjectedImage.h \
 	IsotropicRemesher.h \
+	ShapeNetFormat.h \
 	
 SOURCES += \
     Sampler.cpp \	

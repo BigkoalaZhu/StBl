@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'stbl_widget.ui'
 **
-** Created by: Qt User Interface Compiler version 5.3.2
+** Created by: Qt User Interface Compiler version 5.5.1
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -46,6 +46,7 @@ public:
     QPushButton *GenSingleImage;
     QLineEdit *cameraPath;
     QLabel *label_2;
+    QPushButton *LoadAList;
 
     void setupUi(QWidget *stbl_widget)
     {
@@ -128,6 +129,11 @@ public:
 
         formLayout_4->setWidget(0, QFormLayout::LabelRole, label_2);
 
+        LoadAList = new QPushButton(Project);
+        LoadAList->setObjectName(QStringLiteral("LoadAList"));
+
+        formLayout_4->setWidget(3, QFormLayout::SpanningRole, LoadAList);
+
         tabWidget->addTab(Project, QString());
 
         verticalLayout->addWidget(tabWidget);
@@ -153,8 +159,9 @@ public:
         tabWidget->setTabText(tabWidget->indexOf(SS), QApplication::translate("stbl_widget", "Split Shapes", 0));
         LoadSigleMesh->setText(QApplication::translate("stbl_widget", "Load Single mesh to test", 0));
         GenSingleImage->setText(QApplication::translate("stbl_widget", "Generate image", 0));
-        cameraPath->setText(QApplication::translate("stbl_widget", "C:\\Users\\cza68\\Documents\\CodingWork\\StructureBlending\\c++code\\StBl\\UtilityLib\\cameras", 0));
+        cameraPath->setText(QApplication::translate("stbl_widget", "UtilityLib\\cameras", 0));
         label_2->setText(QApplication::translate("stbl_widget", "Camera File Path: ", 0));
+        LoadAList->setText(QApplication::translate("stbl_widget", "Batch processing", 0));
         tabWidget->setTabText(tabWidget->indexOf(Project), QApplication::translate("stbl_widget", "Project Image", 0));
     } // retranslateUi
 

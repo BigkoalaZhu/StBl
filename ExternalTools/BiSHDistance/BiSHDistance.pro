@@ -3,7 +3,7 @@ include($$[SURFACEMESH])
 StarlabTemplate(none)
 
 TEMPLATE = lib
-CONFIG += dynamiclib
+CONFIG += staticlib
 QT += opengl
 
 # Build flag

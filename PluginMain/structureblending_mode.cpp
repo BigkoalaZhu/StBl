@@ -24,7 +24,7 @@ void structureblending_mode::create()
         dockwidget->setWidget(widget);
         mainWindow()->addDockWidget(Qt::RightDockWidgetArea,dockwidget);
 
-		CameraPath = "C:\\Users\\cza68\\Documents\\CodingWork\\StructureBlending\\c++code\\StBl\\UtilityLib\\cameras";
+		CameraPath = "..\\UtilityLib\\cameras";
     }
 
     update();
@@ -261,4 +261,39 @@ void structureblending_mode::CameraIndexChange(QString index)
 void structureblending_mode::GenerateSingleImage()
 {
 	projectImage->projectImage(CameraIndex, "test.bmp");
+}
+
+void structureblending_mode::LoadAList2GenerateImages()
+{
+	QFileDialog dialog(mainWindow());
+	dialog.setDirectory(QDir::currentPath());
+	dialog.setFileMode(QFileDialog::DirectoryOnly);
+
+	if (dialog.exec())
+	{
+		QStringList filenames = dialog.selectedFiles();
+		QVector<ShapeNetModelInfo> ShapeList = ShapeNetFormate::LoadFolder(filenames[0]);
+
+		
+		for (int i = 0; i < ShapeList.size(); i++)
+		{
+			QString filename = ShapeList[i].FileLocation + "/model.obj";
+			QDir dir(ShapeList[i].FileLocation + "/ProjectedImages");
+
+			if (!dir.exists())
+				dir.mkdir(dir.absolutePath());
+			else
+				continue;
+
+			SurfaceMeshModel *mesh = new SurfaceMeshModel(filename);
+			mesh->read(filename.toStdString());
+			mesh->updateBoundingBox();
+			mesh->update_face_normals();
+			mesh->update_vertex_normals();
+
+			GenerateProjectedImage *pi = new GenerateProjectedImage(mesh, CameraPath);
+			for (int j = 0; j < pi->getCameraSize(); j++)
+				pi->projectImage(j, dir.absolutePath() + "/" + QString::number(j) + ".bmp");
+		}
+	}
 }

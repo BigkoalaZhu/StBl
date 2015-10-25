@@ -60,7 +60,7 @@ void GenerateProjectedImage::projectImage(int index, QString filename)
 {
 	int v_num = model->vertices_size();
 	int f_num = model->faces_size();
-	int Width = 1024;
+	int Width = 256;
 
 	Eigen::MatrixXd tmp = Eigen::MatrixXd::Zero(v_num, 3);
 	Eigen::MatrixXd result = Eigen::MatrixXd::Zero(v_num, 3);

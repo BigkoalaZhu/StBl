@@ -16,6 +16,7 @@ public:
 	~GenerateProjectedImage();
 
 	void projectImage(int index, QString filename);
+	int getCameraSize(){ return camera_direction.size(); }
 private:
 	void LoadCameras();
 	void GenerateProjectedImage::sweepTriangle(CvMat *depthMap, Eigen::Vector3d *point, IplImage* I);

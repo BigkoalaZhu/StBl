@@ -55,6 +55,7 @@ public slots:
 	void LoadSingleMesh();
 	void CameraIndexChange(QString);
 	void GenerateSingleImage();
+	void LoadAList2GenerateImages();
 };
 
 

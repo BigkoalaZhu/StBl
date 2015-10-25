@@ -17,17 +17,13 @@
 #include <qglviewer/qglviewer.h>
 #include "RenderObjectExt.h"
 #include "writeOBJ.h"
+#include "ShapeNetFormat.h"
 
 #include "SurfaceMeshModel.h"
 #include "SurfaceMeshHelper.h"
 using namespace SurfaceMesh;
 
-struct ShapeNetModelInfo{
-	QString FileLocation;
-	QString FileDescriptor;
-	Eigen::Vector3d UpDirection;
-	Eigen::Vector3d FrontDirection;
-};
+
 
 namespace SurfaceMesh{
 typedef Eigen::Vector2d Vector2;
@@ -181,16 +177,6 @@ static inline std::vector< SurfaceMesh::SurfaceMeshModel* > connectedPieces(Surf
 	}
 
 	return pieces;
-}
-
-static inline Eigen::Vector3d QStringToVector3d(QString string)
-{
-	Eigen::Vector3d v;
-	QStringList numbers = string.split("\\,");
-	v[0] = numbers[0].toDouble();
-	v[1] = numbers[1].toDouble();
-	v[2] = numbers[2].toDouble();
-	return v;
 }
 
 static inline void SplitListShapes(QString ListName)
