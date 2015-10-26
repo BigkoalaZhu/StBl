@@ -3,6 +3,9 @@
 #include <QFile>
 #include <QDir>
 
+#include "igl/readOBJ.h"
+#include "igl/bounding_box_diagonal.h"
+
 GenerateProjectedImage::GenerateProjectedImage(SurfaceMesh::SurfaceMeshModel* mesh, QString dir)
 {
 	model = mesh;
@@ -16,8 +19,15 @@ GenerateProjectedImage::GenerateProjectedImage(SurfaceMesh::SurfaceMeshModel* me
 
 	colormap = makeColorMap();
 	LoadCameras();
+}
 
-
+GenerateProjectedImage::GenerateProjectedImage(QString filename, QString dir)
+{
+	igl::readOBJ(filename.toStdString(), Model_vertex, Model_face);
+	length = igl::bounding_box_diagonal(Model_vertex);
+	camera_path = dir;
+	colormap = makeColorMap();
+	LoadCameras();
 }
 
 
@@ -56,79 +66,148 @@ void GenerateProjectedImage::LoadCameras()
 	}
 }
 
-void GenerateProjectedImage::projectImage(int index, QString filename)
+void GenerateProjectedImage::projectImage(int index, QString filename, int mode)
 {
-	int v_num = model->vertices_size();
-	int f_num = model->faces_size();
-	int Width = 256;
-
-	Eigen::MatrixXd tmp = Eigen::MatrixXd::Zero(v_num, 3);
-	Eigen::MatrixXd result = Eigen::MatrixXd::Zero(v_num, 3);
-
-	Vector3VertexProperty points = model->vertex_property<Vector3>("v:point");
-	Vector3VertexProperty projected = model->add_vertex_property<Vector3>("v:projected");
-	
-
-	foreach(Vertex v, model->vertices())
+	if (mode == 0)
 	{
-		Eigen::Vector3d vertex = points[v];
+		int v_num = model->vertices_size();
+		int f_num = model->faces_size();
+		int Width = 256;
 
-		tmp(v.idx(), 0) = (vertex - camera_direction[index] * length).dot(camera_direction[index].cross(camera_up[index]));
-		tmp(v.idx(), 1) = (vertex - camera_direction[index] * length).dot(camera_up[index]);
-		tmp(v.idx(), 2) = (vertex - camera_direction[index] * length).dot(-camera_direction[index]);
-	}
+		Eigen::MatrixXd tmp = Eigen::MatrixXd::Zero(v_num, 3);
+		Eigen::MatrixXd result = Eigen::MatrixXd::Zero(v_num, 3);
 
-	Eigen::Vector3d boundaryMax, boundaryMin, boundaryL, boundaryC;
-	boundaryMax = tmp.colwise().maxCoeff();
-	boundaryMin = tmp.colwise().minCoeff();
-	boundaryL = boundaryMax - boundaryMin;
-	boundaryC = (boundaryMax + boundaryMin) / 2;
-	double scale = 1.05*boundaryL.maxCoeff() / Width;
-	double offset_x = Width / 2.0f - boundaryC[0] / scale;
-	double offset_y = Width / 2.0f - boundaryC[1] / scale;
+		Vector3VertexProperty points = model->vertex_property<Vector3>("v:point");
+		Vector3VertexProperty projected = model->add_vertex_property<Vector3>("v:projected");
 
-	int index_j = 0;
-	double minz = 9999, maxz = -9999;
-	foreach(Vertex v, model->vertices())
-	{
-		projected[v] = Vector3(tmp(index_j, 0) / scale + offset_x, Width - tmp(index_j, 1) / scale - offset_y, -tmp(index_j, 2) / scale);
-		if (minz > projected[v][2])
-			minz = projected[v][2];
-		if (maxz < projected[v][2])
-			maxz = projected[v][2];
-		index_j++;
-	}
-	maxDepth = maxz;
-	minDepth = minz;
 
-	Eigen::VectorXi valid = Eigen::VectorXi::Ones(f_num);
-
-	CvMat *depthMap = cvCreateMat(Width, Width, CV_32FC1);
-	IplImage* image = cvCreateImage(cvGetSize(depthMap), 8, 3);
-
-	for (int j = 0; j < Width*Width; j++)
-	{
-		depthMap->data.fl[j] = std::numeric_limits<float>::infinity();
-		image->imageData[3 * j] = 255;
-		image->imageData[3 * j + 1] = 255;
-		image->imageData[3 * j + 2] = 255;
-	}
-
-	Surface_mesh::Vertex_around_face_circulator fvit, fvend;
-	foreach(Face f, model->faces())
-	{		
-		Eigen::Vector3d p[3];
-		int v_index = 0;
-		fvit = fvend = model->vertices(f);
-		do
+		foreach(Vertex v, model->vertices())
 		{
-			p[v_index] = projected[fvit];
-			v_index++;
-		} while (++fvit != fvend);
-		sweepTriangle(depthMap, p, image);
-	}
+			Eigen::Vector3d vertex = points[v];
 
-	cvSaveImage(filename.toStdString().data(), image);
+			tmp(v.idx(), 0) = (vertex - camera_direction[index] * length).dot(camera_direction[index].cross(camera_up[index]));
+			tmp(v.idx(), 1) = (vertex - camera_direction[index] * length).dot(camera_up[index]);
+			tmp(v.idx(), 2) = (vertex - camera_direction[index] * length).dot(-camera_direction[index]);
+		}
+
+		Eigen::Vector3d boundaryMax, boundaryMin, boundaryL, boundaryC;
+		boundaryMax = tmp.colwise().maxCoeff();
+		boundaryMin = tmp.colwise().minCoeff();
+		boundaryL = boundaryMax - boundaryMin;
+		boundaryC = (boundaryMax + boundaryMin) / 2;
+		double scale = 1.05*boundaryL.maxCoeff() / Width;
+		double offset_x = Width / 2.0f - boundaryC[0] / scale;
+		double offset_y = Width / 2.0f - boundaryC[1] / scale;
+
+		int index_j = 0;
+		double minz = 9999, maxz = -9999;
+		foreach(Vertex v, model->vertices())
+		{
+			projected[v] = Vector3(tmp(index_j, 0) / scale + offset_x, Width - tmp(index_j, 1) / scale - offset_y, -tmp(index_j, 2) / scale);
+			if (minz > projected[v][2])
+				minz = projected[v][2];
+			if (maxz < projected[v][2])
+				maxz = projected[v][2];
+			index_j++;
+		}
+		maxDepth = maxz;
+		minDepth = minz;
+
+		Eigen::VectorXi valid = Eigen::VectorXi::Ones(f_num);
+
+		CvMat *depthMap = cvCreateMat(Width, Width, CV_32FC1);
+		IplImage* image = cvCreateImage(cvGetSize(depthMap), 8, 3);
+
+		for (int j = 0; j < Width*Width; j++)
+		{
+			depthMap->data.fl[j] = std::numeric_limits<float>::infinity();
+			image->imageData[3 * j] = 255;
+			image->imageData[3 * j + 1] = 255;
+			image->imageData[3 * j + 2] = 255;
+		}
+
+		Surface_mesh::Vertex_around_face_circulator fvit, fvend;
+		foreach(Face f, model->faces())
+		{
+			Eigen::Vector3d p[3];
+			int v_index = 0;
+			fvit = fvend = model->vertices(f);
+			do
+			{
+				p[v_index] = projected[fvit];
+				v_index++;
+			} while (++fvit != fvend);
+			sweepTriangle(depthMap, p, image);
+		}
+
+		cvSaveImage(filename.toStdString().data(), image);
+	}
+	else
+	{
+		int v_num = Model_vertex.rows();
+		int f_num = Model_face.rows();
+		int Width = 256;
+
+		Eigen::MatrixXd tmp = Eigen::MatrixXd::Zero(v_num, 3);
+		Eigen::MatrixXd projected = Eigen::MatrixXd::Zero(v_num, 3);
+
+		for (int i = 0; i < v_num; i++)
+		{
+			Eigen::Vector3d vertex;
+			vertex[0] = Model_vertex(i, 0);
+			vertex[1] = Model_vertex(i, 1);
+			vertex[2] = Model_vertex(i, 2);
+
+			tmp(i, 0) = (vertex - camera_direction[index] * length).dot(camera_direction[index].cross(camera_up[index]));
+			tmp(i, 1) = (vertex - camera_direction[index] * length).dot(camera_up[index]);
+			tmp(i, 2) = (vertex - camera_direction[index] * length).dot(-camera_direction[index]);
+		}
+
+		Eigen::Vector3d boundaryMax, boundaryMin, boundaryL, boundaryC;
+		boundaryMax = tmp.colwise().maxCoeff();
+		boundaryMin = tmp.colwise().minCoeff();
+		boundaryL = boundaryMax - boundaryMin;
+		boundaryC = (boundaryMax + boundaryMin) / 2;
+		double scale = 1.05*boundaryL.maxCoeff() / Width;
+		double offset_x = Width / 2.0f - boundaryC[0] / scale;
+		double offset_y = Width / 2.0f - boundaryC[1] / scale;
+
+		double minz = 9999, maxz = -9999;
+		for (int i = 0; i < v_num; i++)
+		{
+			projected.row(i) = Vector3(tmp(i, 0) / scale + offset_x, Width - tmp(i, 1) / scale - offset_y, -tmp(i, 2) / scale);
+			if (minz > projected(i,2))
+				minz = projected(i, 2);
+			if (maxz < projected(i, 2))
+				maxz = projected(i, 2);
+		}
+		maxDepth = maxz;
+		minDepth = minz;
+
+		Eigen::VectorXi valid = Eigen::VectorXi::Ones(f_num);
+
+		CvMat *depthMap = cvCreateMat(Width, Width, CV_32FC1);
+		IplImage* image = cvCreateImage(cvGetSize(depthMap), 8, 3);
+
+		for (int j = 0; j < Width*Width; j++)
+		{
+			depthMap->data.fl[j] = std::numeric_limits<float>::infinity();
+			image->imageData[3 * j] = 255;
+			image->imageData[3 * j + 1] = 255;
+			image->imageData[3 * j + 2] = 255;
+		}
+
+		for (int i = 0; i < f_num; i++)
+		{
+			Eigen::Vector3d p[3];
+			p[0] = projected.row(Model_face(i, 0));
+			p[1] = projected.row(Model_face(i, 1));
+			p[2] = projected.row(Model_face(i, 2));
+			sweepTriangle(depthMap, p, image);
+		}
+
+		cvSaveImage(filename.toStdString().data(), image);
+	}
 }
 
 void GenerateProjectedImage::sweepTriangle(CvMat *depthMap, Eigen::Vector3d *point, IplImage* I)

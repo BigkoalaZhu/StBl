@@ -282,18 +282,12 @@ void structureblending_mode::LoadAList2GenerateImages()
 
 			if (!dir.exists())
 				dir.mkdir(dir.absolutePath());
-			else
-				continue;
+//			else
+//				continue;
 
-			SurfaceMeshModel *mesh = new SurfaceMeshModel(filename);
-			mesh->read(filename.toStdString());
-			mesh->updateBoundingBox();
-			mesh->update_face_normals();
-			mesh->update_vertex_normals();
-
-			GenerateProjectedImage *pi = new GenerateProjectedImage(mesh, CameraPath);
+			GenerateProjectedImage *pi = new GenerateProjectedImage(filename, CameraPath);
 			for (int j = 0; j < pi->getCameraSize(); j++)
-				pi->projectImage(j, dir.absolutePath() + "/" + QString::number(j) + ".bmp");
+				pi->projectImage(j, dir.absolutePath() + "/" + QString::number(j) + ".bmp",1);
 		}
 	}
 }

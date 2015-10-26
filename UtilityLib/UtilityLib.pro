@@ -25,6 +25,9 @@ CONFIG(debug, debug|release) {
 }
 INCLUDEPATH += $(OPENCV_INC)
 
+# LIBIGL
+INCLUDEPATH += $(LIBIGL)
+
 HEADERS += \
     QuickMeshDraw.h \
     Sampler.h \
