@@ -274,7 +274,6 @@ void structureblending_mode::LoadAList2GenerateImages()
 		QStringList filenames = dialog.selectedFiles();
 		QVector<ShapeNetModelInfo> ShapeList = ShapeNetFormate::LoadFolder(filenames[0]);
 
-		
 		for (int i = 0; i < ShapeList.size(); i++)
 		{
 			QString filename = ShapeList[i].FileLocation + "/model.obj";
@@ -284,7 +283,6 @@ void structureblending_mode::LoadAList2GenerateImages()
 				dir.mkdir(dir.absolutePath());
 //			else
 //				continue;
-
 			GenerateProjectedImage *pi = new GenerateProjectedImage(filename, CameraPath);
 			for (int j = 0; j < pi->getCameraSize(); j++)
 				pi->projectImage(j, dir.absolutePath() + "/" + QString::number(j) + ".bmp",1);

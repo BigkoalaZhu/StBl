@@ -6,6 +6,8 @@
 #include "igl/readOBJ.h"
 #include "igl/bounding_box_diagonal.h"
 
+#include "UtilityGlobal.h"
+
 GenerateProjectedImage::GenerateProjectedImage(SurfaceMesh::SurfaceMeshModel* mesh, QString dir)
 {
 	model = mesh;
@@ -72,7 +74,7 @@ void GenerateProjectedImage::projectImage(int index, QString filename, int mode)
 	{
 		int v_num = model->vertices_size();
 		int f_num = model->faces_size();
-		int Width = 256;
+		int Width = 512;
 
 		Eigen::MatrixXd tmp = Eigen::MatrixXd::Zero(v_num, 3);
 		Eigen::MatrixXd result = Eigen::MatrixXd::Zero(v_num, 3);
@@ -129,7 +131,8 @@ void GenerateProjectedImage::projectImage(int index, QString filename, int mode)
 		Surface_mesh::Vertex_around_face_circulator fvit, fvend;
 		foreach(Face f, model->faces())
 		{
-			Eigen::Vector3d p[3];
+			QVector<Eigen::Vector3d> p;
+			p.resize(3);
 			int v_index = 0;
 			fvit = fvend = model->vertices(f);
 			do
@@ -184,6 +187,7 @@ void GenerateProjectedImage::projectImage(int index, QString filename, int mode)
 		maxDepth = maxz;
 		minDepth = minz;
 
+		
 		Eigen::VectorXi valid = Eigen::VectorXi::Ones(f_num);
 
 		CvMat *depthMap = cvCreateMat(Width, Width, CV_32FC1);
@@ -197,25 +201,30 @@ void GenerateProjectedImage::projectImage(int index, QString filename, int mode)
 			image->imageData[3 * j + 2] = 255;
 		}
 
+//		QMessageBox message(QMessageBox::Warning, "Information", "1", NULL, NULL);
+//		message.exec();
+
 		for (int i = 0; i < f_num; i++)
 		{
-			Eigen::Vector3d p[3];
+			QVector<Eigen::Vector3d> p;
+			p.resize(3);
+
 			p[0] = projected.row(Model_face(i, 0));
 			p[1] = projected.row(Model_face(i, 1));
 			p[2] = projected.row(Model_face(i, 2));
 			sweepTriangle(depthMap, p, image);
 		}
-
+		
 		cvSaveImage(filename.toStdString().data(), image);
 	}
 }
 
-void GenerateProjectedImage::sweepTriangle(CvMat *depthMap, Eigen::Vector3d *point, IplImage* I)
+void GenerateProjectedImage::sweepTriangle(CvMat *depthMap, QVector<Eigen::Vector3d> point, IplImage* I)
 {
 	int upMost, downMost;
 	bool updated = false;
-	int margin_x[2];
-	float margin_z[2];
+	int margin_x[2] = {0,0};
+	float margin_z[2] = {0.0f,0.0f};
 	for (int i = 0; i<3; i++)
 	{
 		if (!updated)
@@ -234,14 +243,18 @@ void GenerateProjectedImage::sweepTriangle(CvMat *depthMap, Eigen::Vector3d *poi
 		int mIdx = 0;
 		for (int i = 0; i<3; i++)
 		{
-			Eigen::Vector3d &p1 = point[i];
-			Eigen::Vector3d &p2 = point[(i + 1) % 3];
+			Eigen::Vector3d p1 = point[i];
+			Eigen::Vector3d p2 = point[(i + 1) % 3];
 			float dy1 = p1[1] - y;
 			float dy2 = p2[1] - y;
 			if (dy1*dy2 <= 0)
 			{
-				margin_x[mIdx] = (dy2 - dy1 == 0) ? p1[0] : p1[0] - dy1 / (dy2 - dy1)*(p2[0] - p1[0]);
-				margin_z[mIdx] = (dy2 - dy1 == 0) ? p1[2] : p1[2] - dy1 / (dy2 - dy1)*(p2[2] - p1[2]);
+				if (dy1 == 0 && dy2 == 0)
+				{
+					continue;
+				}
+				margin_x[mIdx] = (abs(dy2 - dy1) < 1e-4) ? p1[0] : p1[0] - dy1 / (dy2 - dy1)*(p2[0] - p1[0]);
+				margin_z[mIdx] = (abs(dy2 - dy1) < 1e-4) ? p1[2] : p1[2] - dy1 / (dy2 - dy1)*(p2[2] - p1[2]);
 				mIdx++;
 			}
 		}
@@ -268,7 +281,11 @@ void GenerateProjectedImage::sweepTriangle(CvMat *depthMap, Eigen::Vector3d *poi
 		int mx_e = (margin_x[0] >= margin_x[1]) ? margin_x[0] : margin_x[1];
 		for (int x = mx_s; x <= mx_e; x++)
 		{
-			float z = margin_z[0] + float(x - margin_x[0]) / (margin_x[1] - margin_x[0])*(margin_z[1] - margin_z[0]);
+			float z;
+			if (margin_x[0] != margin_x[1])
+				z = margin_z[0] + float(x - margin_x[0]) / (margin_x[1] - margin_x[0])*(margin_z[1] - margin_z[0]);
+			else
+				z = margin_z[0];
 			if (depthMap->data.fl[y*depthMap->width + x] > z)
 			{
 				//QColor color = getColorFromMap((z - minDepth) / (maxDepth - minDepth), colormap);

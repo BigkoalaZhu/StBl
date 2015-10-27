@@ -20,7 +20,7 @@ public:
 	int getCameraSize(){ return camera_direction.size(); }
 private:
 	void LoadCameras();
-	void GenerateProjectedImage::sweepTriangle(CvMat *depthMap, Eigen::Vector3d *point, IplImage* I);
+	void GenerateProjectedImage::sweepTriangle(CvMat *depthMap, QVector<Eigen::Vector3d> point, IplImage* I);
 
 	SurfaceMesh::SurfaceMeshModel* model;
 	Eigen::MatrixXd Model_vertex;

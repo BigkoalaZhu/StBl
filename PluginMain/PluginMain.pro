@@ -1,6 +1,9 @@
 include($$[STARLAB])
 include($$[SURFACEMESH])
 include($$[CHOLMOD])
+
+include($$[NANOFLANN])
+include($$[OCTREE])
 StarlabTemplate(plugin)
 
 # Build flag
@@ -18,6 +21,10 @@ INCLUDEPATH += ../PartGraphLib
 LIBS += -L$$PWD/../UtilityLib/$$CFG -lUtilityLib
 INCLUDEPATH += ../UtilityLib
 
+# PlausibilityAnalysis library
+LIBS += -L$$PWD/../PlausibilityAnalysis/$$CFG/lib -lPlausibilityAnalysis
+INCLUDEPATH += ../PlausibilityAnalysis
+
 # OpenCV
 CONFIG(debug, debug|release) {
     LIBS += -L$(OPENCV_LIB) -lopencv_ts300d -lopencv_world300d
@@ -25,6 +32,9 @@ CONFIG(debug, debug|release) {
     LIBS += -L$(OPENCV_LIB) -lopencv_ts300 -lopencv_world300
 }
 INCLUDEPATH += $(OPENCV_INC)
+
+# LIBIGL
+INCLUDEPATH += $(LIBIGL)
 
 HEADERS += \
     structureblending_mode.h \

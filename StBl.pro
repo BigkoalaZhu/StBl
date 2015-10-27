@@ -9,4 +9,5 @@ SUBDIRS += PluginMain
 SUBDIRS += UtilityLib
 SUBDIRS += PartGraphLib
 SUBDIRS += nurbs_plugin
+SUBDIRS += PlausibilityAnalysis
 

@@ -95,6 +95,7 @@ static inline void matrixToFile(const Eigen::MatrixXd & M, QString filename)
 			row << QString::number(M(i,j));
 		out << (row.join(",") + "\n");
 	}
+	file.close();
 }
 
 

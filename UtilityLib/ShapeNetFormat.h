@@ -1,6 +1,6 @@
 #pragma once
 
-#include <QVector>
+#include <QtCore>
 
 struct ShapeNetModelInfo{
 	QString FileLocation;
