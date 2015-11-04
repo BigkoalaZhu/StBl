@@ -1,5 +1,6 @@
 #pragma once
 
+#include <fstream>
 #include <QtXml/QDomDocument>
 
 #include <QSharedPointer>
@@ -81,6 +82,39 @@ static inline void debugBoxVec2( Container2D data, int limit = -1 ){
 	}
 	if(limit > 0 && data.size() - l.size() > 0) l << QString("... (%1) more").arg(data.size() - l.size());
 	debugBoxList(l);
+}
+
+namespace Eigen{
+	template<class Matrix>
+	void write_binary(const char* filename, const Matrix& matrix, int r){
+		std::ofstream out(filename, std::ios::out | std::ios::binary | std::ios::trunc);
+		typename Matrix::Index rows = matrix.rows(), cols = matrix.cols();
+		out.write((char*)(&r), sizeof(typename Matrix::Index));
+		out.write((char*)(&cols), sizeof(typename Matrix::Index));
+		out.write((char*)matrix.data(), r*cols*sizeof(typename Matrix::Scalar));
+		out.close();
+	}
+
+	template<class Matrix>
+	void write_txt(const char* filename, const Matrix& matrix){
+		std::ofstream out(filename, std::ios::out | std::ios::trunc);
+		typename Matrix::Index rows = matrix.rows(), cols = matrix.cols();
+		out.write((char*)(&rows), sizeof(typename Matrix::Index));
+		out.write((char*)(&cols), sizeof(typename Matrix::Index));
+		out.write((char*)matrix.data(), rows*cols*sizeof(typename Matrix::Scalar));
+		out.close();
+	}
+
+	template<class Matrix>
+	void read_binary(const char* filename, Matrix& matrix){
+		std::ifstream in(filename, std::ios::in | std::ios::binary);
+		typename Matrix::Index rows = 0, cols = 0;
+		in.read((char*)(&rows), sizeof(typename Matrix::Index));
+		in.read((char*)(&cols), sizeof(typename Matrix::Index));
+		matrix.resize(rows, cols);
+		in.read((char *)matrix.data(), rows*cols*sizeof(typename Matrix::Scalar));
+		in.close();
+	}
 }
 
 static inline void matrixToFile(const Eigen::MatrixXd & M, QString filename)

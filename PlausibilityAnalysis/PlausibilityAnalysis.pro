@@ -36,7 +36,10 @@ INCLUDEPATH += $(OPENCV_INC)
 LIBS += -L$$PWD/../UtilityLib/$$CFG -lUtilityLib
 INCLUDEPATH += ../UtilityLib
 
-HEADERS += PlausibilityAnalysis.h \
-    FeatureSearchingTree.h \
+# BiSHDistance library
+LIBS += -L$$PWD/../BiSHDistance/$$CFG/lib -lBiSHDistance
+INCLUDEPATH += ../BiSHDistance
 
-SOURCES += PlausibilityAnalysis.cpp \
+HEADERS += PlausibilityDistance.h \
+
+SOURCES += PlausibilityDistance.cpp \

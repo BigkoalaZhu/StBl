@@ -9,6 +9,9 @@
 #include "SegMeshLoader.h"
 #include "UtilityGlobal.h"
 
+#include "PlausibilityDistance.h"
+#include "EMDMorphing2D.h"
+
 structureblending_mode::structureblending_mode()
 {
     this->widget = NULL;
@@ -230,7 +233,7 @@ void structureblending_mode::CameraPathChange(QString path)
 
 void structureblending_mode::LoadSingleMesh()
 {
-	QFileDialog dialog(mainWindow());
+/*	QFileDialog dialog(mainWindow());
 	dialog.setDirectory(QDir::currentPath());
 	dialog.setFileMode(QFileDialog::ExistingFiles);
 	dialog.setNameFilter(tr("OBJ Files (*.obj);; OFF Files (*.off)"));
@@ -250,6 +253,36 @@ void structureblending_mode::LoadSingleMesh()
 		projectImage = new GenerateProjectedImage(Current_Single_Object, CameraPath);
 
 		drawArea()->updateGL();
+	}*/
+
+	QFileDialog dialog(mainWindow());
+	dialog.setDirectory(QDir::currentPath());
+	dialog.setFileMode(QFileDialog::DirectoryOnly);
+
+	if (dialog.exec())
+	{
+		QStringList filenames = dialog.selectedFiles();
+		PlausibilityDistance PD(filenames[0], 200);
+
+		PD.GenerateBiSHDescriptor();
+
+//		double dd = PD.CalculatePairDistance(2823, 507);
+
+//		QMessageBox message(QMessageBox::Warning, "Warning", QString::number(dd), QMessageBox::Ok, NULL);
+//		message.exec();
+
+
+//		PD.GenerateBiSHDescriptor();
+
+//		PD.CalculatePairwiseDistance();
+
+//		double dd1 = PD.CalculatePairDistance(507, 790);
+//		double dd2 = PD.CalculatePairDistance(790, 2823);
+//		double dd3 = PD.CalculatePairDistance(507, 2823);
+//		double dd4 = PD.CalculatePairDistance(236, 240);
+
+//		QMessageBox message(QMessageBox::Warning, "Warning", QString::number(dd1) + "," + QString::number(dd2) + "," + QString::number(dd3), QMessageBox::Ok, NULL);
+//		message.exec();
 	}
 }
 
@@ -274,16 +307,23 @@ void structureblending_mode::LoadAList2GenerateImages()
 		QStringList filenames = dialog.selectedFiles();
 		QVector<ShapeNetModelInfo> ShapeList = ShapeNetFormate::LoadFolder(filenames[0]);
 
+//		EMDMorphing2D em(filenames[0], filenames[0]);
+//		em.Initialization();
+//		em.GetInbetween(0.5, "test.bmp");
+
+
 		for (int i = 0; i < ShapeList.size(); i++)
 		{
 			QString filename = ShapeList[i].FileLocation + "/model.obj";
 			QDir dir(ShapeList[i].FileLocation + "/ProjectedImages");
 
-			if (!dir.exists())
-				dir.mkdir(dir.absolutePath());
-//			else
+//			if (!dir.exists())
+//				dir.mkdir(dir.absolutePath());
+//			else if (dir.count() == 202)
 //				continue;
 			GenerateProjectedImage *pi = new GenerateProjectedImage(filename, CameraPath);
+
+//			#pragma omp parallel for
 			for (int j = 0; j < pi->getCameraSize(); j++)
 				pi->projectImage(j, dir.absolutePath() + "/" + QString::number(j) + ".bmp",1);
 		}

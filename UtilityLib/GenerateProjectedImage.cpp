@@ -204,9 +204,6 @@ void GenerateProjectedImage::projectImage(int index, QString filename, int mode)
 //		QMessageBox message(QMessageBox::Warning, "Information", "1", NULL, NULL);
 //		message.exec();
 
-		if (index < 2)
-			return;
-
 		for (int i = 0; i < f_num; i++)
 		{
 			QVector<Eigen::Vector3d> p;
@@ -219,6 +216,8 @@ void GenerateProjectedImage::projectImage(int index, QString filename, int mode)
 		}
 		
 		cvSaveImage(filename.toStdString().data(), image);
+		cvReleaseMat(&depthMap);
+		cvReleaseImage(&image);
 	}
 }
 
@@ -253,7 +252,38 @@ void GenerateProjectedImage::sweepTriangle(CvMat *depthMap, QVector<Eigen::Vecto
 			if (dy1*dy2 <= 0)
 			{
 				if (mIdx == 2)
+				{
+					int tmpx = (abs(dy2 - dy1) < 1e-4) ? p1[0] : p1[0] - dy1 / (dy2 - dy1)*(p2[0] - p1[0]);
+					float tmpz = (abs(dy2 - dy1) < 1e-4) ? p1[2] : p1[2] - dy1 / (dy2 - dy1)*(p2[2] - p1[2]);
+
+					int mx = 0;
+					int mn = 1;
+					if (margin_x[0] < margin_x[1])
+					{
+						mx = 1;
+						mn = 0;
+					}
+
+					if (tmpx < margin_x[mn])
+						margin_x[mn] = tmpx;
+					if (tmpx > margin_x[mx])
+						margin_x[mx] = tmpx;
+
+					mx = 0;
+					mn = 1;
+					if (margin_z[0] < margin_z[1])
+					{
+						mx = 1;
+						mn = 0;
+					}
+
+					if (tmpz < margin_z[mn])
+						margin_z[mn] = tmpz;
+					if (tmpz > margin_z[mx])
+						margin_z[mx] = tmpz;
+
 					break;
+				}
 				margin_x[mIdx] = (abs(dy2 - dy1) < 1e-4) ? p1[0] : p1[0] - dy1 / (dy2 - dy1)*(p2[0] - p1[0]);
 				margin_z[mIdx] = (abs(dy2 - dy1) < 1e-4) ? p1[2] : p1[2] - dy1 / (dy2 - dy1)*(p2[2] - p1[2]);
 				mIdx++;

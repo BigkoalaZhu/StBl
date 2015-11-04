@@ -7,7 +7,8 @@ SUBDIRS += PluginMain
 # SUBDIRS += StructureGraphLib
 # SUBDIRS += ThreadsGraphLib
 SUBDIRS += UtilityLib
-SUBDIRS += PartGraphLib
-SUBDIRS += nurbs_plugin
+#SUBDIRS += PartGraphLib
+#SUBDIRS += nurbs_plugin
 SUBDIRS += PlausibilityAnalysis
+SUBDIRS += BiSHDistance
 

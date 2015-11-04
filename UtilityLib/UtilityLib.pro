@@ -28,6 +28,10 @@ INCLUDEPATH += $(OPENCV_INC)
 # LIBIGL
 INCLUDEPATH += $(LIBIGL)
 
+# Liblbfgs
+#LIBS += -L$$PWD/Liblbfgs/lib/$$CFG/ -llbfgs
+#INCLUDEPATH += Liblbfgs
+
 HEADERS += \
     QuickMeshDraw.h \
     Sampler.h \

@@ -13,9 +13,9 @@ CONFIG(debug, debug|release) {
     CFG = release
 }
 
-# PartGraph library
-LIBS += -L$$PWD/../PartGraphLib/$$CFG/lib -lPartGraphLib
-INCLUDEPATH += ../PartGraphLib
+# BiSHDistance library
+LIBS += -L$$PWD/../BiSHDistance/$$CFG/lib -lBiSHDistance
+INCLUDEPATH += ../BiSHDistance
 
 # UtilityLib library
 LIBS += -L$$PWD/../UtilityLib/$$CFG -lUtilityLib
