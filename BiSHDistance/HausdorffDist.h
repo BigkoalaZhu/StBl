@@ -28,6 +28,8 @@ public:
 	map<int,float> computeShift2(vector<int> A, vector<int> B,map<int,int> &matchedPoints);
 
 	double computeDist(Eigen::VectorXd A, Eigen::VectorXd B, double lameda = 0.05);
+	double computeDist256(Eigen::VectorXd A, Eigen::VectorXd B, double lameda = 0.05);
+	double computeDist128(Eigen::VectorXd A, Eigen::VectorXd B, double lameda = 0.05);
 private:
 	int compute_dist(vector<int> A, vector<int> B);
 	int compute_dist_fast(vector<int> A, vector<pair<bool,int>> BEnd);

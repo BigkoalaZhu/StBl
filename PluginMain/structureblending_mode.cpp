@@ -262,9 +262,9 @@ void structureblending_mode::LoadSingleMesh()
 	if (dialog.exec())
 	{
 		QStringList filenames = dialog.selectedFiles();
-		PlausibilityDistance PD(filenames[0], 200);
+		PlausibilityDistance PD(filenames[0], 20);
 
-		PD.GenerateBiSHDescriptor();
+//		PD.GenerateBiSHDescriptor();
 
 //		double dd = PD.CalculatePairDistance(2823, 507);
 
@@ -274,7 +274,7 @@ void structureblending_mode::LoadSingleMesh()
 
 //		PD.GenerateBiSHDescriptor();
 
-//		PD.CalculatePairwiseDistance();
+		PD.CalculatePairwiseDistance();
 
 //		double dd1 = PD.CalculatePairDistance(507, 790);
 //		double dd2 = PD.CalculatePairDistance(790, 2823);
@@ -317,15 +317,15 @@ void structureblending_mode::LoadAList2GenerateImages()
 			QString filename = ShapeList[i].FileLocation + "/model.obj";
 			QDir dir(ShapeList[i].FileLocation + "/ProjectedImages");
 
-//			if (!dir.exists())
-//				dir.mkdir(dir.absolutePath());
-//			else if (dir.count() == 202)
-//				continue;
+			if (!dir.exists())
+				dir.mkdir(dir.absolutePath());
+			else if (dir.count() == 202)
+				continue;
 			GenerateProjectedImage *pi = new GenerateProjectedImage(filename, CameraPath);
 
 //			#pragma omp parallel for
 			for (int j = 0; j < pi->getCameraSize(); j++)
-				pi->projectImage(j, dir.absolutePath() + "/" + QString::number(j) + ".bmp",1);
+				pi->projectImage(j, dir.absolutePath() + "/" + QString::number(j) + ".jpg",1);
 		}
 	}
 }

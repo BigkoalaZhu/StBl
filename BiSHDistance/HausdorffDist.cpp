@@ -2,6 +2,8 @@
 #include "HausdorffNode.h"
 #include <time.h>
 
+#include <QTime>
+
 vector<int> HausdorffDist::detecHoles(vector<int> postion,vector<pair<bool,int>> &endInShape, vector<pair<bool,int>> &endInHole)
 {
 	if(postion.size()==0)return vector<int>();
@@ -162,19 +164,120 @@ void HausdorffDist::detectShapeEnds(vector<int> postion,vector<pair<bool,int>> &
 
 }
 
+double HausdorffDist::computeDist128(Eigen::VectorXd A, Eigen::VectorXd B, double lameda)
+{
+	double tmpA, tmpB;
+	double max_A = 0;
+	double max_B = 0;
+
+	for (int i = 0; i < 128; i++)
+	{
+		tmpA = exp(lameda*double(abs(A[i] - B[i])));
+		int step = 1;
+		while ((tmpA > step + 1) && ((i - step > 0) || (i + step < 128)))
+		{
+			if (i - step > 0)
+			{
+				double tmp = (step + 1)*exp(lameda*double(abs(A[i] - B[i - step])));
+				tmpA = tmpA > tmp ? tmp : tmpA;
+			}
+
+			if (i + step < 128)
+			{
+				double tmp = (step + 1)*exp(lameda*double(abs(A[i] - B[i + step])));
+				tmpA = tmpA > tmp ? tmp : tmpA;
+			}
+			step++;
+		}
+		max_A = tmpA > max_A ? tmpA : max_A;
+	}
+
+	for (int i = 0; i < 128; i++)
+	{
+		tmpB = exp(lameda*double(abs(B[i] - A[i])));
+		int step = 1;
+		while ((tmpB > step + 1) && ((i - step > 0) || (i + step < 128)))
+		{
+			if (i - step > 0)
+			{
+				double tmp = (step + 1)*exp(lameda*double(abs(B[i] - A[i - step])));
+				tmpB = tmpB > tmp ? tmp : tmpB;
+			}
+
+			if (i + step < 128)
+			{
+				double tmp = (step + 1)*exp(lameda*double(abs(B[i] - A[i + step])));
+				tmpB = tmpB > tmp ? tmp : tmpB;
+			}
+			step++;
+		}
+		max_B = tmpB > max_B ? tmpB : max_B;
+	}
+
+	return max_A > max_B ? max_A : max_B;
+}
+
+double HausdorffDist::computeDist256(Eigen::VectorXd A, Eigen::VectorXd B, double lameda)
+{
+	double tmpA, tmpB;
+	double max_A = 0;
+	double max_B = 0;
+
+	for (int i = 0; i < 256; i++)
+	{
+		tmpA = exp(lameda*double(abs(A[i] - B[i])));
+		int step = 1;
+		while ((tmpA > step + 1) && ((i - step > 0) || (i + step < 256)))
+		{
+			if (i - step > 0)
+			{
+				double tmp = (step + 1)*exp(lameda*double(abs(A[i] - B[i - step])));
+				tmpA = tmpA > tmp ? tmp : tmpA;
+			}
+			
+			if (i + step < 256)
+			{
+				double tmp = (step + 1)*exp(lameda*double(abs(A[i] - B[i + step])));
+				tmpA = tmpA > tmp ? tmp : tmpA;
+			}
+			step++;
+		}
+		max_A = tmpA > max_A ? tmpA : max_A;
+	}
+
+	for (int i = 0; i < 256; i++)
+	{
+		tmpB = exp(lameda*double(abs(B[i] - A[i])));
+		int step = 1;
+		while ((tmpB > step + 1) && ((i - step > 0) || (i + step < 256)))
+		{
+			if (i - step > 0)
+			{
+				double tmp = (step + 1)*exp(lameda*double(abs(B[i] - A[i - step])));
+				tmpB = tmpB > tmp ? tmp : tmpB;
+			}
+
+			if (i + step < 256)
+			{
+				double tmp = (step + 1)*exp(lameda*double(abs(B[i] - A[i + step])));
+				tmpB = tmpB > tmp ? tmp : tmpB;
+			}
+			step++;
+		}
+		max_B = tmpB > max_B ? tmpB : max_B;
+	}
+
+	return max_A > max_B ? max_A : max_B;
+}
+
 double HausdorffDist::computeDist(Eigen::VectorXd A, Eigen::VectorXd B, double lameda)
 {
-	Eigen::MatrixXd Dist = Eigen::MatrixXd::Zero(A.size(), B.size());
+	Eigen::MatrixXd Dist = Eigen::MatrixXd::Ones(A.size(), B.size());
 	for (int i = 0; i < A.size(); i++)
 	{
 		for (int j = 0; j < B.size(); j++)
 		{
-			int aaa = A[i];
-			int bbb = B[j];
-			double tmpp = lameda*double(abs(A[i] - B[j]));
-			double tmp = (abs(i - j) + 1)*exp(lameda*double(abs(A[i] - B[j])));
 			Dist(i, j) = (abs(i - j) + 1)*exp(lameda*double(abs(A[i] - B[j])));
-			//Dist(i, j) = Dist(j, i);
 		}
 	}
 	Eigen::VectorXd MinDist_A = Dist.rowwise().minCoeff();

@@ -149,7 +149,7 @@ void GenerateProjectedImage::projectImage(int index, QString filename, int mode)
 	{
 		int v_num = Model_vertex.rows();
 		int f_num = Model_face.rows();
-		int Width = 256;
+		int Width = 128;
 
 		Eigen::MatrixXd tmp = Eigen::MatrixXd::Zero(v_num, 3);
 		Eigen::MatrixXd projected = Eigen::MatrixXd::Zero(v_num, 3);

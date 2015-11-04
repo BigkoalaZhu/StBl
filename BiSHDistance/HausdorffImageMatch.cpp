@@ -5,16 +5,18 @@ vector<pair<int,int>> HausdorffImageMatch::run(vector<HausdorffNode> srcNodes, v
 	int num2 = dstNodes.size();
 	vector<vector<float>> distmatrix(num1);
 	for(int jj=0;jj<num1;jj++)
-		distmatrix[jj].resize(num2,0);
+		distmatrix[jj].resize(num2,1e8);
 
 	for(int jj=0;jj<num1;jj++)
 	{
-        #pragma omp parallel for
+//        #pragma omp parallel for
 		for(int kk=0;kk<num2;kk++)
-		{			
+		{
+			if (abs(double(jj) / num1 - double(kk) / num2) > 0.33)
+				continue;
 		/*	if(kk==2&&jj==0)
 				cout<<"debug\n";*/
-			float dist = m_hausdorffDist.computeDist(srcNodes[jj].line,dstNodes[kk].line, 5);	
+			float dist = m_hausdorffDist.computeDist256(srcNodes[jj].line, dstNodes[kk].line, 5);
 			float scalefactor = srcNodes[jj].height/(float)dstNodes[kk].height;
 			//scalefactor=1/scalefactor;
 			//if(scalefactor>=1)
