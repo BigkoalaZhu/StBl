@@ -43,6 +43,7 @@ HEADERS += \
 	GenerateProjectedImage.h \
 	IsotropicRemesher.h \
 	ShapeNetFormat.h \
+	emdL1.h \
 	
 SOURCES += \
     Sampler.cpp \	
@@ -50,6 +51,7 @@ SOURCES += \
     SegMeshLoader.cpp \
     UtilityGlobal.cpp \
 	GenerateProjectedImage.cpp \
+	emdL1.cpp \
  
 FORMS += \
 
