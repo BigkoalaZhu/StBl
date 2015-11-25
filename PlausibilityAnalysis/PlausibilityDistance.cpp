@@ -26,52 +26,71 @@ PlausibilityDistance::~PlausibilityDistance()
 
 void PlausibilityDistance::GenerateBiSHDescriptor()
 {
-	for (int i = 0; i < 2; i++)
+	QVector<int> errs;
+	for (int i = 0; i < instance_number; i++)
 	{
         #pragma omp parallel for
 		for (int j = 0; j < CameraNum; j++)
 		{
 			QString filename = ShapeNet_Data[i].FileLocation + "/ProjectedImages/" + QString::number(j) + ".jpg";
-			QString outfile_s = ShapeNet_Data[i].FileLocation + "/ProjectedImages/" + QString::number(j) + "_s.txt";
-			QString outfile_l = ShapeNet_Data[i].FileLocation + "/ProjectedImages/" + QString::number(j) + "_l.txt";
+			QFileInfo dir(filename);
+			QFileInfo dir_s(ShapeNet_Data[i].FileLocation + "/ProjectedImages/" + QString::number(j) + "_s.txt");
+			QFileInfo dir_l(ShapeNet_Data[i].FileLocation + "/ProjectedImages/" + QString::number(j) + "_l.txt");
 
-			BiSHDist::ImageSimlify(filename.toStdString(), outfile_s.toStdString(), 15);
-			BiSHDist::ImageSimlify(filename.toStdString(), outfile_l.toStdString(), 30, false);
-		}
-	}
-}
-
-void PlausibilityDistance::CalculatePairwiseDistance()
-{
-	
-	for (int i = 0; i < instance_number; i++)
-	{
-		for (int j = i + 1; j < instance_number; j++)
-		{
-			QTime time;
-			time.start();
-			PairwiseEMDistance(i, j) = CalculatePairDistance(i, j);
-			PairwiseEMDistance(i, j) = PairwiseEMDistance(j, i);
-
-			if (1)
+			if (dir_s.exists() && dir_l.exists())
 			{
-				int time_Diff = time.elapsed();
-			    float f = time_Diff / 1000.0;
-				QString tr_timeDiff = QString("%1").arg(f);
+			}
+			else if (!dir.exists())
+			{
+				errs.push_back(i);
+			}
+			else
+			{
 
-				QMessageBox message(QMessageBox::Warning, "Warning", tr_timeDiff, QMessageBox::Ok, NULL);
-				message.exec();
+				QString outfile_s = ShapeNet_Data[i].FileLocation + "/ProjectedImages/" + QString::number(j) + "_s.txt";
+				QString outfile_l = ShapeNet_Data[i].FileLocation + "/ProjectedImages/" + QString::number(j) + "_l.txt";
+
+				BiSHDist::ImageSimlify(filename.toStdString(), outfile_s.toStdString(), 10);
+				BiSHDist::ImageSimlify(filename.toStdString(), outfile_l.toStdString(), 20, false);
 			}
 		}
 	}
 
-	Eigen::write_txt("distance.txt", PairwiseEMDistance);
+	std::ofstream out("errs.txt");
+	for (int i = 0; i < errs.size(); i++)
+		out << errs[i] << " ";
+	out.close();
+}
+
+void PlausibilityDistance::CalculatePairwiseDistance()
+{
+	QTime time;
+	time.start();
+	for (int i = 0; i < instance_number; i++)
+	{
+		for (int j = i + 1; j < instance_number; j++)
+		{
+			PairwiseEMDistance(i, j) = CalculatePairDistance(i, j);
+			PairwiseEMDistance(j, i) = PairwiseEMDistance(i, j);
+		}
+	}
+	std::ofstream out("distance_l.txt");
+	for (int i = 0; i < PairwiseEMDistance.rows(); i++)
+	{
+		for (int j = 0; j < PairwiseEMDistance.cols(); j++)
+		{
+			out << PairwiseEMDistance(i, j) << " ";
+		}
+		out << "\n";
+	}
+	out.close();
 }
 
 double PlausibilityDistance::CalculatePairDistance(int index_i, int index_j)
 {
 	double Dist = 0;
 
+	int errs = 0;
 #pragma omp parallel for
 	for (int i = 0; i < CameraNum; i++)
 	{
@@ -119,14 +138,25 @@ double PlausibilityDistance::CalculatePairDistance(int index_i, int index_j)
 
 		B_s = ShapeNet_Data[index_j].FileLocation + "/ProjectedImages/" + QString::number(i) + "_s.txt";
 		B_l = ShapeNet_Data[index_j].FileLocation + "/ProjectedImages/" + QString::number(i) + "_l.txt";
+
+		QFileInfo dir_s(A_l);
+		QFileInfo dir_l(B_s);
+
+		if (!dir_s.exists() || !dir_l.exists())
+		{
+			errs++;
+			continue;
+		}
 		
 		float disttmp1 = 0, disttmp2 = 0;
 		BiSHDist::ImageMatch(A_l.toStdString(), B_s.toStdString(), disttmp1);
-		BiSHDist::ImageMatch(B_l.toStdString(), A_s.toStdString(), disttmp2);
+//		BiSHDist::ImageMatch(B_l.toStdString(), A_s.toStdString(), disttmp2);
 
 		Dist += (disttmp1 + disttmp2) / 2;
 
 	}
+
+	Dist = (Dist / (CameraNum - errs)) * CameraNum;
 
 	return Dist;
 }

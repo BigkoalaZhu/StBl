@@ -11,4 +11,5 @@ SUBDIRS += UtilityLib
 #SUBDIRS += nurbs_plugin
 SUBDIRS += PlausibilityAnalysis
 SUBDIRS += BiSHDistance
+SUBDIRS += GCDLib
 

@@ -12,6 +12,8 @@
 #include "PlausibilityDistance.h"
 #include "EMDMorphing2D.h"
 
+#include "PlausibleSquenceSearching.h"
+
 structureblending_mode::structureblending_mode()
 {
     this->widget = NULL;
@@ -262,11 +264,18 @@ void structureblending_mode::LoadSingleMesh()
 	if (dialog.exec())
 	{
 		QStringList filenames = dialog.selectedFiles();
+
+//		PlausibleSquenceSearching pss("distance.txt", 354);
+//		pss.SetBiasAndTolerence(3000.0f, 0.3);
+//		QVector<QVector<int>> paths = pss.FindPlausiblePath(182, 120);
+
+//		QVector<ShapeNetModelInfo> ShapeList = ShapeNetFormate::LoadFolderSem(filenames[0], "03001627");
+
 		PlausibilityDistance PD(filenames[0], 20);
 
 //		PD.GenerateBiSHDescriptor();
 
-//		double dd = PD.CalculatePairDistance(2823, 507);
+//		double dd = PD.CalculatePairDistance(0, 343);
 
 //		QMessageBox message(QMessageBox::Warning, "Warning", QString::number(dd), QMessageBox::Ok, NULL);
 //		message.exec();
@@ -312,7 +321,7 @@ void structureblending_mode::LoadAList2GenerateImages()
 //		em.GetInbetween(0.5, "test.bmp");
 
 
-		for (int i = 0; i < ShapeList.size(); i++)
+		for (int i = 0; i < 1; i++)
 		{
 			QString filename = ShapeList[i].FileLocation + "/model.obj";
 			QDir dir(ShapeList[i].FileLocation + "/ProjectedImages");
@@ -324,7 +333,7 @@ void structureblending_mode::LoadAList2GenerateImages()
 			GenerateProjectedImage *pi = new GenerateProjectedImage(filename, CameraPath);
 
 //			#pragma omp parallel for
-			for (int j = 0; j < pi->getCameraSize(); j++)
+			for (int j = 0; j < 20; j++)
 				pi->projectImage(j, dir.absolutePath() + "/" + QString::number(j) + ".jpg",1);
 		}
 	}

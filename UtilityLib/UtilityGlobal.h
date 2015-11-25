@@ -86,12 +86,12 @@ static inline void debugBoxVec2( Container2D data, int limit = -1 ){
 
 namespace Eigen{
 	template<class Matrix>
-	void write_binary(const char* filename, const Matrix& matrix, int r){
+	void write_binary(const char* filename, const Matrix& matrix){
 		std::ofstream out(filename, std::ios::out | std::ios::binary | std::ios::trunc);
 		typename Matrix::Index rows = matrix.rows(), cols = matrix.cols();
-		out.write((char*)(&r), sizeof(typename Matrix::Index));
+		out.write((char*)(&rows), sizeof(typename Matrix::Index));
 		out.write((char*)(&cols), sizeof(typename Matrix::Index));
-		out.write((char*)matrix.data(), r*cols*sizeof(typename Matrix::Scalar));
+		out.write((char*)matrix.data(), rows*cols*sizeof(typename Matrix::Scalar));
 		out.close();
 	}
 
@@ -128,6 +128,24 @@ static inline void matrixToFile(const Eigen::MatrixXd & M, QString filename)
 		for(unsigned int j = 0; j < M.cols(); j++)
 			row << QString::number(M(i,j));
 		out << (row.join(",") + "\n");
+	}
+	file.close();
+}
+
+static inline void fileToMatrix(Eigen::MatrixXd & M, QString filename, int width)
+{
+	QFile file(filename);
+	if (!file.open(QFile::ReadOnly | QFile::Text)) return;
+	QTextStream in(&file);
+
+	M = Eigen::MatrixXd::Zero(width, width);
+
+	for (unsigned int i = 0; i < width; i++)
+	{
+		for (unsigned int j = 0; j < width; j++)
+		{
+			in >> M(i, j);
+		}
 	}
 	file.close();
 }
@@ -308,6 +326,65 @@ static inline void SplitListShapes(QString ListName)
 		out << endl;
 	}
 	outputList.close();
+}
+
+static inline bool copyFileToPath(QString sourceDir, QString toDir, bool coverFileIfExist)
+{
+	toDir.replace("\\", "/");
+	if (sourceDir == toDir){
+		return true;
+	}
+	if (!QFile::exists(sourceDir)){
+		return false;
+	}
+	QDir *createfile = new QDir;
+	bool exist = createfile->exists(toDir);
+	if (exist){
+		if (coverFileIfExist){
+			createfile->remove(toDir);
+		}
+	}//end if  
+
+	if (!QFile::copy(sourceDir, toDir))
+	{
+		return false;
+	}
+	return true;
+}
+  
+static inline bool copyDirectoryFiles(const QString &fromDir, const QString &toDir, bool coverFileIfExist)
+{
+	QDir sourceDir(fromDir);
+	QDir targetDir(toDir);
+	if (!targetDir.exists()){    
+		if (!targetDir.mkdir(targetDir.absolutePath()))
+			return false;
+	}
+
+	QFileInfoList fileInfoList = sourceDir.entryInfoList();
+	foreach(QFileInfo fileInfo, fileInfoList){
+		if (fileInfo.fileName() == "." || fileInfo.fileName() == "..")
+			continue;
+
+		if (fileInfo.isDir()){    
+			if (!copyDirectoryFiles(fileInfo.filePath(),
+				targetDir.filePath(fileInfo.fileName()),
+				coverFileIfExist))
+				return false;
+		}
+		else{            
+			if (coverFileIfExist && targetDir.exists(fileInfo.fileName())){
+				targetDir.remove(fileInfo.fileName());
+			}
+
+			
+			if (!QFile::copy(fileInfo.filePath(),
+				targetDir.filePath(fileInfo.fileName()))){
+				return false;
+			}
+		}
+	}
+	return true;
 }
 
 #include "BasicTable.h"
