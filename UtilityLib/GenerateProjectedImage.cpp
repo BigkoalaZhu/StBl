@@ -1,5 +1,5 @@
 #include "GenerateProjectedImage.h"
-#include "Colormap.h"
+#include "Colormaps.h"
 #include <QFile>
 #include <QDir>
 

@@ -18,6 +18,11 @@ stbl_widget::stbl_widget(structureblending_mode * m) : ui(new Ui::stbl_widget)
 	mode->connect(ui->cameraIndex, SIGNAL(textChanged(QString)), SLOT(CameraIndexChange(QString)));
 	mode->connect(ui->cameraPath, SIGNAL(textChanged(QString)), SLOT(CameraPathChange(QString)));
 	mode->connect(ui->LoadAList, SIGNAL(clicked()), SLOT(LoadAList2GenerateImages()));
+
+	/////////////////////////////////////////////Correspondence
+	mode->connect(ui->HasPartInfo, SIGNAL(stateChanged(int)), SLOT(HasPartChange(int)));
+	mode->connect(ui->HasInbetInfo, SIGNAL(stateChanged(int)), SLOT(HasInbetweenChange(int)));
+	mode->connect(ui->LoadPair, SIGNAL(clicked()), SLOT(LoadShapePair()));
 	
 }
 

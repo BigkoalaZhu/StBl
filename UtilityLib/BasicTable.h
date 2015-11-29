@@ -2,7 +2,7 @@
 #include <QAbstractTableModel>
 #include <QTableView>
 
-#include "Colormap.h"
+#include "Colormaps.h"
 
 class BasicTable : public QAbstractTableModel {
 public:

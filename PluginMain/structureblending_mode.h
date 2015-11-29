@@ -3,6 +3,7 @@
 #include "SurfaceMeshPlugins.h"
 #include "SurfaceMeshHelper.h"
 #include "GenerateProjectedImage.h"
+#include "CorrFinder.h"
 
 #include "stbl_widget.h"
 
@@ -34,7 +35,7 @@ public:
 
 private:
     stbl_widget * widget;
-
+	
 	SurfaceMeshModel * Current_Single_Object;
 	std::vector<SurfaceMeshModel*> Current_parts;
 
@@ -44,6 +45,11 @@ private:
 	QString CameraPath;
 	GenerateProjectedImage * projectImage;
 	int CameraIndex;
+
+	/////////////////////////////////////////////Correspondence
+	CorrFinder * corrfinder;
+	bool hasPart;
+	bool hasInbetween;
 
 public slots:
     void LoadSingleObject();
@@ -56,6 +62,13 @@ public slots:
 	void CameraIndexChange(QString);
 	void GenerateSingleImage();
 	void LoadAList2GenerateImages();
+
+	void HasPartChange(int);
+	void HasInbetweenChange(int);
+
+	/////////////////////////////////////////////Correspondence
+	void LoadShapePair();
+	
 };
 
 

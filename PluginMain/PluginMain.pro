@@ -17,6 +17,10 @@ CONFIG(debug, debug|release) {
 LIBS += -L$$PWD/../BiSHDistance/$$CFG/lib -lBiSHDistance
 INCLUDEPATH += ../BiSHDistance
 
+# CorrFinder library
+LIBS += -L$$PWD/../CorrFinder/$$CFG -lCorrFinder
+INCLUDEPATH += ../CorrFinder
+
 # UtilityLib library
 LIBS += -L$$PWD/../UtilityLib/$$CFG -lUtilityLib
 INCLUDEPATH += ../UtilityLib

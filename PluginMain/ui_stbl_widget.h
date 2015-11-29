@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'stbl_widget.ui'
 **
-** Created by: Qt User Interface Compiler version 5.3.2
+** Created by: Qt User Interface Compiler version 5.4.1
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -13,10 +13,14 @@
 #include <QtWidgets/QAction>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QButtonGroup>
+#include <QtWidgets/QCheckBox>
 #include <QtWidgets/QFormLayout>
+#include <QtWidgets/QFrame>
+#include <QtWidgets/QGridLayout>
 #include <QtWidgets/QHeaderView>
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QLineEdit>
+#include <QtWidgets/QListView>
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QTabWidget>
 #include <QtWidgets/QVBoxLayout>
@@ -47,12 +51,24 @@ public:
     QLineEdit *cameraPath;
     QLabel *label_2;
     QPushButton *LoadAList;
+    QWidget *Corr;
+    QGridLayout *gridLayout;
+    QPushButton *FindInbet;
+    QPushButton *LoadInbet;
+    QFrame *line;
+    QPushButton *GenPartSet;
+    QListView *SourcrPartSet;
+    QPushButton *FindCorr;
+    QListView *TargetPartSet;
+    QCheckBox *HasPartInfo;
+    QPushButton *LoadPair;
+    QCheckBox *HasInbetInfo;
 
     void setupUi(QWidget *stbl_widget)
     {
         if (stbl_widget->objectName().isEmpty())
             stbl_widget->setObjectName(QStringLiteral("stbl_widget"));
-        stbl_widget->resize(349, 545);
+        stbl_widget->resize(426, 711);
         verticalLayout = new QVBoxLayout(stbl_widget);
         verticalLayout->setObjectName(QStringLiteral("verticalLayout"));
         tabWidget = new QTabWidget(stbl_widget);
@@ -135,13 +151,70 @@ public:
         formLayout_4->setWidget(3, QFormLayout::SpanningRole, LoadAList);
 
         tabWidget->addTab(Project, QString());
+        Corr = new QWidget();
+        Corr->setObjectName(QStringLiteral("Corr"));
+        gridLayout = new QGridLayout(Corr);
+        gridLayout->setObjectName(QStringLiteral("gridLayout"));
+        FindInbet = new QPushButton(Corr);
+        FindInbet->setObjectName(QStringLiteral("FindInbet"));
+
+        gridLayout->addWidget(FindInbet, 3, 0, 1, 2);
+
+        LoadInbet = new QPushButton(Corr);
+        LoadInbet->setObjectName(QStringLiteral("LoadInbet"));
+
+        gridLayout->addWidget(LoadInbet, 5, 0, 1, 2);
+
+        line = new QFrame(Corr);
+        line->setObjectName(QStringLiteral("line"));
+        line->setFrameShape(QFrame::HLine);
+        line->setFrameShadow(QFrame::Sunken);
+
+        gridLayout->addWidget(line, 6, 0, 1, 2);
+
+        GenPartSet = new QPushButton(Corr);
+        GenPartSet->setObjectName(QStringLiteral("GenPartSet"));
+
+        gridLayout->addWidget(GenPartSet, 7, 0, 1, 2);
+
+        SourcrPartSet = new QListView(Corr);
+        SourcrPartSet->setObjectName(QStringLiteral("SourcrPartSet"));
+
+        gridLayout->addWidget(SourcrPartSet, 8, 0, 1, 1);
+
+        FindCorr = new QPushButton(Corr);
+        FindCorr->setObjectName(QStringLiteral("FindCorr"));
+
+        gridLayout->addWidget(FindCorr, 9, 0, 1, 2);
+
+        TargetPartSet = new QListView(Corr);
+        TargetPartSet->setObjectName(QStringLiteral("TargetPartSet"));
+
+        gridLayout->addWidget(TargetPartSet, 8, 1, 1, 1);
+
+        HasPartInfo = new QCheckBox(Corr);
+        HasPartInfo->setObjectName(QStringLiteral("HasPartInfo"));
+
+        gridLayout->addWidget(HasPartInfo, 0, 0, 1, 1);
+
+        LoadPair = new QPushButton(Corr);
+        LoadPair->setObjectName(QStringLiteral("LoadPair"));
+
+        gridLayout->addWidget(LoadPair, 2, 0, 1, 2);
+
+        HasInbetInfo = new QCheckBox(Corr);
+        HasInbetInfo->setObjectName(QStringLiteral("HasInbetInfo"));
+
+        gridLayout->addWidget(HasInbetInfo, 0, 1, 1, 1);
+
+        tabWidget->addTab(Corr, QString());
 
         verticalLayout->addWidget(tabWidget);
 
 
         retranslateUi(stbl_widget);
 
-        tabWidget->setCurrentIndex(2);
+        tabWidget->setCurrentIndex(3);
 
 
         QMetaObject::connectSlotsByName(stbl_widget);
@@ -163,6 +236,14 @@ public:
         label_2->setText(QApplication::translate("stbl_widget", "Camera File Path: ", 0));
         LoadAList->setText(QApplication::translate("stbl_widget", "Batch processing", 0));
         tabWidget->setTabText(tabWidget->indexOf(Project), QApplication::translate("stbl_widget", "Project Image", 0));
+        FindInbet->setText(QApplication::translate("stbl_widget", "Find inbetween templates", 0));
+        LoadInbet->setText(QApplication::translate("stbl_widget", "Load inbetween templates", 0));
+        GenPartSet->setText(QApplication::translate("stbl_widget", "Generate candidates part set", 0));
+        FindCorr->setText(QApplication::translate("stbl_widget", "Find Correspondence", 0));
+        HasPartInfo->setText(QApplication::translate("stbl_widget", "Has Part Information", 0));
+        LoadPair->setText(QApplication::translate("stbl_widget", "Load shape pair", 0));
+        HasInbetInfo->setText(QApplication::translate("stbl_widget", "Has Inbetween Information", 0));
+        tabWidget->setTabText(tabWidget->indexOf(Corr), QApplication::translate("stbl_widget", "Correspondence", 0));
     } // retranslateUi
 
 };

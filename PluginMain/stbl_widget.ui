@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>349</width>
-    <height>545</height>
+    <width>426</width>
+    <height>711</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,7 +17,7 @@
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>2</number>
+      <number>3</number>
      </property>
      <widget class="QWidget" name="Obj2Graph">
       <attribute name="title">
@@ -120,6 +120,75 @@
         <widget class="QPushButton" name="LoadAList">
          <property name="text">
           <string>Batch processing</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="Corr">
+      <attribute name="title">
+       <string>Correspondence</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout">
+       <item row="3" column="0" colspan="2">
+        <widget class="QPushButton" name="FindInbet">
+         <property name="text">
+          <string>Find inbetween templates</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="0" colspan="2">
+        <widget class="QPushButton" name="LoadInbet">
+         <property name="text">
+          <string>Load inbetween templates</string>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="0" colspan="2">
+        <widget class="Line" name="line">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="0" colspan="2">
+        <widget class="QPushButton" name="GenPartSet">
+         <property name="text">
+          <string>Generate candidates part set</string>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="0">
+        <widget class="QListView" name="SourcrPartSet"/>
+       </item>
+       <item row="9" column="0" colspan="2">
+        <widget class="QPushButton" name="FindCorr">
+         <property name="text">
+          <string>Find Correspondence</string>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="1">
+        <widget class="QListView" name="TargetPartSet"/>
+       </item>
+       <item row="0" column="0">
+        <widget class="QCheckBox" name="HasPartInfo">
+         <property name="text">
+          <string>Has Part Information</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0" colspan="2">
+        <widget class="QPushButton" name="LoadPair">
+         <property name="text">
+          <string>Load shape pair</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QCheckBox" name="HasInbetInfo">
+         <property name="text">
+          <string>Has Inbetween Information</string>
          </property>
         </widget>
        </item>

@@ -38,12 +38,14 @@ HEADERS += \
     OrientHelper.h \
     SegMeshLoader.h \
     UtilityGlobal.h \
-	Colormap.h \
+	Colormaps.h \
 	writeOBJ.h \
 	GenerateProjectedImage.h \
 	IsotropicRemesher.h \
 	ShapeNetFormat.h \
 	emdL1.h \
+	OBB_Volume.h \
+	OBB_Volume_math.h \
 	
 SOURCES += \
     Sampler.cpp \	

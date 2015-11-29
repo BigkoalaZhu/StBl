@@ -4,12 +4,8 @@ TEMPLATE = subdirs
 SUBDIRS += PluginMain
 
 # Libraries
-# SUBDIRS += StructureGraphLib
-# SUBDIRS += ThreadsGraphLib
 SUBDIRS += UtilityLib
-#SUBDIRS += PartGraphLib
-#SUBDIRS += nurbs_plugin
 SUBDIRS += PlausibilityAnalysis
 SUBDIRS += BiSHDistance
-SUBDIRS += GCDLib
+SUBDIRS += CorrFinder
 

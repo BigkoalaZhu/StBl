@@ -10,9 +10,6 @@
 #include "UtilityGlobal.h"
 
 #include "PlausibilityDistance.h"
-#include "EMDMorphing2D.h"
-
-#include "PlausibleSquenceSearching.h"
 
 structureblending_mode::structureblending_mode()
 {
@@ -30,6 +27,9 @@ void structureblending_mode::create()
         mainWindow()->addDockWidget(Qt::RightDockWidgetArea,dockwidget);
 
 		CameraPath = "..\\UtilityLib\\cameras";
+		hasPart = false;
+		hasInbetween = false;
+		corrfinder = NULL;
     }
 
     update();
@@ -57,24 +57,29 @@ bool structureblending_mode::keyPressEvent(QKeyEvent *)
 
 void structureblending_mode::decorate()
 {
-	
+	if (corrfinder == NULL)
+		return;
+	corrfinder->DrawPartShape();
 }
 
 void structureblending_mode::drawWithNames()
 {
+	if (corrfinder == NULL)
+		return;
     double vt = 0;
 
 	qglviewer::Vec viewDir = drawArea()->camera()->viewDirection().unit();
     Vector3 cameraNormal(viewDir[0],viewDir[1],viewDir[2]);
 
-    foreach(Face f, mesh()->faces())
+    foreach(Face f, corrfinder->getSourceShape()->faces())
     {
         if(dot(fnormals[f], cameraNormal) > vt) continue;
 
         glPushName(f.idx());
         glBegin(GL_POLYGON);
         Surface_mesh::Vertex_around_face_circulator vit, vend;
-        vit = vend = mesh()->vertices(f);
+		vit = vend = corrfinder->getSourceShape()->vertices(f);
+		points = corrfinder->getSourceShape()->vertex_property<Vector3>("v:point");
         do{ glVertex3dv(points[vit].data()); } while(++vit != vend);
         glEnd();
         glPopName();
@@ -101,6 +106,31 @@ void structureblending_mode::LoadSingleObject()
 
 		drawArea()->updateGL();
 	}
+}
+
+void structureblending_mode::LoadShapePair()
+{
+	QFileDialog dialog(mainWindow());
+	dialog.setDirectory(QDir::currentPath());
+	dialog.setFileMode(QFileDialog::ExistingFiles);
+	dialog.setNameFilter(tr("Pair Files (*.spair)"));
+
+	if (dialog.exec())
+	{
+		QStringList filenames = dialog.selectedFiles();
+		corrfinder = new CorrFinder;
+		corrfinder->LoadPairFile(filenames[0], hasPart, hasInbetween);
+	}
+}
+
+void structureblending_mode::HasPartChange(int check)
+{
+	hasPart = check;
+}
+
+void structureblending_mode::HasInbetweenChange(int check)
+{
+	hasInbetween = check;
 }
 
 void structureblending_mode::LoadSingleObjectSplit()

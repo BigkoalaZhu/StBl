@@ -1,6 +1,5 @@
 #include "PlausibilityDistance.h"
 #include "emdL1.h"
-#include "FastEMD\emd_hat.hpp"
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
