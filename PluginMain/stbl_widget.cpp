@@ -23,6 +23,7 @@ stbl_widget::stbl_widget(structureblending_mode * m) : ui(new Ui::stbl_widget)
 	mode->connect(ui->HasPartInfo, SIGNAL(stateChanged(int)), SLOT(HasPartChange(int)));
 	mode->connect(ui->HasInbetInfo, SIGNAL(stateChanged(int)), SLOT(HasInbetweenChange(int)));
 	mode->connect(ui->LoadPair, SIGNAL(clicked()), SLOT(LoadShapePair()));
+	mode->connect(ui->GenPartSet, SIGNAL(clicked()), SLOT(GeneratePartSet()));
 	
 }
 

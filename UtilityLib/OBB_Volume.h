@@ -112,6 +112,16 @@ public:
 
 	bool isReady;
 
+	OBB_Volume(std::vector<Vector3d> pnts)
+	{
+		sides = translation = Vector3d(0, 0, 0);
+		rotation = Vector4d(0, 0, 0, 0);
+
+		fm_computeBestFitOBB(pnts.size(), &pnts.front()[0], sizeof(Vector3d), &sides[0], &translation[0], &rotation[0], true);
+
+		isReady = true;
+	}
+
 	OBB_Volume(Surface_mesh * mesh = NULL)
 	{
 		if (mesh == NULL)

@@ -68,6 +68,7 @@ public slots:
 
 	/////////////////////////////////////////////Correspondence
 	void LoadShapePair();
+	void GeneratePartSet();
 	
 };
 

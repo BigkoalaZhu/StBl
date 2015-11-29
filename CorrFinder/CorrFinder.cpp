@@ -2,6 +2,7 @@
 #include "Colormaps.h"
 #include "QuickMeshDraw.h"
 #include <qfile.h>
+#include "OBB_Volume.h"
 
 CorrFinder::CorrFinder()
 {
@@ -26,38 +27,51 @@ bool CorrFinder::LoadPairFile(QString filepath, bool hasPart, bool hasInbetween)
 	if (!pairfile.open(QIODevice::ReadOnly))
 		return false;
 
+	QString folder = filepath;
+	folder.chop(folder.length() - folder.lastIndexOf("/") - 1);
+
 	QTextStream in(&pairfile);
 	QString str = in.readLine();
 	QStringList strtmp = str.split(" ");
-	sourceShape_path = strtmp[1];
+	sourceShape_path = folder + strtmp[1];
 
 	str = in.readLine();
 	strtmp = str.split(" ");
-	targetShape_path = strtmp[1];
+	targetShape_path = folder + strtmp[1];
 
 	str = in.readLine();
 	strtmp = str.split(" ");
-	sourceIndex_path = strtmp[1];
+	sourceIndex_path = folder + strtmp[1];
 
 	str = in.readLine();
 	strtmp = str.split(" ");
-	targetIndex_path = strtmp[1];
+	targetIndex_path = folder + strtmp[1];
 
 	if (hasPart)
 	{
 		str = in.readLine();
 		strtmp = str.split(" ");
-		int PartNum = strtmp[1].toInt();
-		SourceShapePartIndex.resize(PartNum);
-		for (int i = 0; i < PartNum; i++)
-			SourceShapePartIndex[i] = strtmp[i + 2].toInt();
+		SourceShapePartNum = strtmp[1].toInt();
+		SourceShapePartIndex.resize(SourceShapePartNum);
+		for (int i = 0; i < SourceShapePartNum; i++)
+		{
+			str = in.readLine();
+			strtmp = str.split(" ");
+			for (int j = 0; j < strtmp.size(); j++)
+				SourceShapePartIndex[i].push_back(strtmp[j].toInt());
+		}
 
 		str = in.readLine();
 		strtmp = str.split(" ");
-		PartNum = strtmp[1].toInt();
-		TargetShapePartIndex.resize(PartNum);
-		for (int i = 0; i < PartNum; i++)
-			TargetShapePartIndex[i] = strtmp[i + 2].toInt();
+		TargetShapePartNum = strtmp[1].toInt();
+		TargetShapePartIndex.resize(TargetShapePartNum);
+		for (int i = 0; i < TargetShapePartNum; i++)
+		{
+			str = in.readLine();
+			strtmp = str.split(" ");
+			for (int j = 0; j < strtmp.size(); j++)
+				TargetShapePartIndex[i].push_back(strtmp[j].toInt());
+		}
 	}
 
 	if (hasInbetween)
@@ -84,6 +98,7 @@ bool CorrFinder::LoadPairFile(QString filepath, bool hasPart, bool hasInbetween)
 	SourceShape->update_face_normals();
 	SourceShape->update_vertex_normals();
 	SourceShape->add_face_property("f:partcolor", QColor(255, 255, 255, 255));
+	SourceShape->add_face_property("f:seg", int(-1));
 
 	TargetShape = new SurfaceMeshModel(targetShape_path);
 	TargetShape->read(targetShape_path.toStdString());
@@ -91,6 +106,7 @@ bool CorrFinder::LoadPairFile(QString filepath, bool hasPart, bool hasInbetween)
 	TargetShape->update_face_normals();
 	TargetShape->update_vertex_normals();
 	TargetShape->add_face_property("f:partcolor", QColor(255, 255, 255, 255));
+	TargetShape->add_face_property("f:seg", int(-1));
 
 	SourceShapeSegmentIndex.resize(SourceShape->faces_size());
 	SourceShapePartIndex.resize(SourceShape->faces_size());
@@ -105,7 +121,7 @@ bool CorrFinder::LoadPairFile(QString filepath, bool hasPart, bool hasInbetween)
 	return true;
 }
 
-void CorrFinder::ApplySegmentColor()
+void CorrFinder::ApplySegmentColor(int sindex)
 {
 	Surface_mesh::Face_property<QColor> fscolors = SourceShape->face_property<QColor>("f:partcolor");
 	Surface_mesh::Face_property<QColor> ftcolors = TargetShape->face_property<QColor>("f:partcolor");
@@ -115,12 +131,29 @@ void CorrFinder::ApplySegmentColor()
 	double eachInternal = 1.0f / sourceVaildSegNum;
 	int index = 0;
 	for (fit = SourceShape->faces_begin(); fit != fend; ++fit){
-		if (SourceShapeSegmentJointIndex[SourceShapeSegmentIndex[index]] == -1)
+		int selected;
+		if (sindex == -1)
+		{
+			for (int i = 0; i < SourceShapeSegmentNum; i++)
+				if (SourceShapeSegmentIndex[i][index] == 1)
+				{
+					selected = i;
+					break;
+				}
+		}
+		else if (SourceShapeSegmentIndex[sindex][index] == 1)
+			selected = sindex;
+		else
 		{
 			index++;
 			continue;
 		}
-		fscolors[fit] = getColorFromMap(eachInternal*SourceShapeSegmentIndex[index], ColorMap);
+		if (SourceShapeSegmentJointIndex[selected] == -1)
+		{
+			index++;
+			continue;
+		}
+		fscolors[fit] = getColorFromMap(eachInternal*selected, ColorMap);
 		index++;
 	}
 
@@ -129,42 +162,176 @@ void CorrFinder::ApplySegmentColor()
 	eachInternal = 1.0f / targetVaildSegNum;
 	index = 0;
 	for (fit = TargetShape->faces_begin(); fit != fend; ++fit){
-		if (TargetShapeSegmentJointIndex[TargetShapeSegmentIndex[index]] == -1)
+		int selected;
+		if (sindex == -1)
+		{
+			for (int i = 0; i < TargetShapeSegmentNum; i++)
+				if (TargetShapeSegmentIndex[i][index] == 1)
+				{
+					selected = i;
+					break;
+				}
+		}
+		else if (TargetShapeSegmentIndex[sindex][index] == 1)
+			selected = sindex;
+		else
 		{
 			index++;
 			continue;
 		}
-		ftcolors[fit] = getColorFromMap(eachInternal*TargetShapeSegmentIndex[index], ColorMap);
+		if (TargetShapeSegmentJointIndex[selected] == -1)
+		{
+			index++;
+			continue;
+		}
+		ftcolors[fit] = getColorFromMap(eachInternal*selected, ColorMap);
 		index++;
 	}
 }
 
 void CorrFinder::FindSegAdjacencyMatrix()
 {
+	Surface_mesh::Face_around_vertex_circulator fit, fend;
+	Surface_mesh::Vertex_iterator vit;
+	Surface_mesh::Face_property<int> fsseg = SourceShape->face_property<int>("f:seg");
+	Surface_mesh::Face_property<int> ftseg = TargetShape->face_property<int>("f:seg");
+
+	for (vit = SourceShape->vertices_begin(); vit != SourceShape->vertices_end(); ++vit)
+	{
+		QVector<int> segs;
+		fit = fend = SourceShape->faces(vit);
+		do{segs.push_back(fsseg[fit]);} while (++fit != fend);
+		for (int i = 0; i < segs.size(); i++)
+		{
+			for (int j = i + 1; j < segs.size(); j++)
+			{
+				if (segs[i] != segs[j])
+					SourceSegAdjacencyMatrix(segs[i], segs[j]) = 1;
+			}
+		}
+	}
+
 }
 
-void CorrFinder::ApplyPartColor()
+void CorrFinder::FlatSegMerge(double threshold, int SorT)
+{
+	SurfaceMeshModel * proessShape;
+	int SegNum;
+	if (SorT == 0)
+	{
+		proessShape = SourceShape;
+		SegNum = SourceShapeSegmentNum;
+	}
+	else
+	{
+		proessShape = TargetShape;
+		SegNum = TargetShapeSegmentNum;
+	}
+		
+	Surface_mesh::Vertex_property<Surface_mesh::Vector3> points = proessShape->vertex_property<Surface_mesh::Vector3>("v:point");
+	Surface_mesh::Face_property<int> fsseg = proessShape->face_property<int>("f:seg");
+	Surface_mesh::Face_iterator fit, fend;
+	Surface_mesh::Vertex_around_face_circulator fvit, fvend;
+	std::vector<std::vector<Vector3d>> SegPoints;
+	QVector<int> SegFlat;
+
+	SegFlat.resize(SegNum);
+	SegPoints.resize(SegNum);
+	fend = proessShape->faces_end();
+	for (fit = proessShape->faces_begin(); fit != fend; ++fit){
+		int flag = fsseg[fit];
+		fvit = fvend = proessShape->vertices(fit);
+		do{
+			SegPoints[flag].push_back(points[fvit]);
+		} while (++fvit != fvend);
+	}
+	for (int i = 0; i < SegNum; i++)
+	{
+		OBB_Volume obb(SegPoints[i]);
+		Vector3d extants = obb.extents();
+
+		double maxc = extants.maxCoeff();
+		double minc = extants.minCoeff();
+		double middlec;
+		for (int j = 0; j < 3; j++)
+		{
+			if (extants[j] != maxc&&extants[j] != minc)
+			{
+				middlec = extants[j];
+				break;
+			}
+				
+		}
+
+		double oth = middlec / minc;
+		if (oth > threshold)
+			SegFlat[i] = 1;
+		else
+			SegFlat[i] = 0;
+	}
+	int ttt = SegFlat.size();
+}
+
+void CorrFinder::GeneratePartSet()
+{
+	FindSegAdjacencyMatrix();
+	FlatSegMerge(3.0, 0);
+}
+
+void CorrFinder::ApplyPartColor(int sindex)
 {
 	Surface_mesh::Face_property<QColor> fscolors = SourceShape->face_property<QColor>("f:partcolor");
 	Surface_mesh::Face_property<QColor> ftcolors = TargetShape->face_property<QColor>("f:partcolor");
 
 	Surface_mesh::Face_iterator fit, fend = SourceShape->faces_end();
+
 	double eachInternal = 1.0f / SourceShapePartNum;
 	int index = 0;
 	for (fit = SourceShape->faces_begin(); fit != fend; ++fit){
-		if (SourceShapeSegmentJointIndex[index] == -1)
+		int selected;
+		if (sindex == -1)
+		{
+			for (int i = 0; i < SourceShapePartNum; i++)
+				if (SourceShapePartIndex[i][index] == 1)
+				{
+					selected = i;
+					break;
+				}
+		}
+		else if (SourceShapePartIndex[sindex][index] == 1)
+			selected = sindex;
+		else
+		{
+			index++;
 			continue;
-		fscolors[fit] = getColorFromMap(eachInternal*SourceShapePartIndex[index], ColorMap);
+		}
+		fscolors[fit] = getColorFromMap(eachInternal*selected, ColorMap);
 		index++;
 	}
 
 	fend = TargetShape->faces_end();
+
 	eachInternal = 1.0f / TargetShapePartNum;
 	index = 0;
 	for (fit = TargetShape->faces_begin(); fit != fend; ++fit){
-		if (TargetShapeSegmentJointIndex[index] == -1)
+		int selected;
+		if (sindex == -1)
+		{
+			for (int i = 0; i < TargetShapePartNum; i++)
+				if (TargetShapePartIndex[i][index] == 1)
+				{
+					selected = i;
+					break;
+				}
+		}
+		else if (TargetShapePartIndex[sindex][index] == 1)
+			selected = sindex;
+		else
+		{
+			index++;
 			continue;
-		ftcolors[fit] = getColorFromMap(eachInternal*TargetShapePartIndex[index], ColorMap);
+		}
+		ftcolors[fit] = getColorFromMap(eachInternal*selected, ColorMap);
 		index++;
 	}
 }
@@ -189,6 +356,7 @@ bool CorrFinder::LoadParialPartFile()
 	SourceShapeSegmentJointIndex.fill(-1);
 	for (int i = 0; i < sourceVaildSegNum; i++)
 		SourceShapeSegmentJointIndex[i] = 1;
+	SourceShapeSegmentIndex.resize(SourceShapeSegmentNum);
 	SourceShapeSegmentAxis.resize(SourceShapeSegmentNum);
 	SourceShapeSegmentAxisDirection.resize(SourceShapeSegmentNum);
 
@@ -200,6 +368,7 @@ bool CorrFinder::LoadParialPartFile()
 	TargetShapeSegmentJointIndex.fill(-1);
 	for (int i = 0; i < targetVaildSegNum; i++)
 		TargetShapeSegmentJointIndex[i] = 1;
+	TargetShapeSegmentIndex.resize(TargetShapeSegmentNum);
 	TargetShapeSegmentAxis.resize(TargetShapeSegmentNum);
 	TargetShapeSegmentAxisDirection.resize(TargetShapeSegmentNum);
 
@@ -229,9 +398,11 @@ bool CorrFinder::LoadParialPartFile()
 		str = in_source.readLine();
 		strtmp = str.split(" ");
 
+		SourceShapeSegmentIndex[i].resize(SourceShape->faces_size());
+		SourceShapeSegmentIndex[i].fill(0);
 		for (int j = 0; j < faceNum; j++)
 		{
-			SourceShapeSegmentIndex[strtmp[j].toInt()] = i;
+			SourceShapeSegmentIndex[i][strtmp[j].toInt()] = 1;
 		}
 	}
 
@@ -261,9 +432,11 @@ bool CorrFinder::LoadParialPartFile()
 		str = in_target.readLine();
 		strtmp = str.split(" ");
 
+		TargetShapeSegmentIndex[i].resize(TargetShape->faces_size());
+		TargetShapeSegmentIndex[i].fill(0);
 		for (int j = 0; j < faceNum; j++)
 		{
-			TargetShapeSegmentIndex[strtmp[j].toInt()] = i;
+			TargetShapeSegmentIndex[i][strtmp[j].toInt()] = 1;
 		}
 	}
 
@@ -271,4 +444,28 @@ bool CorrFinder::LoadParialPartFile()
 	TargetSegAdjacencyMatrix = Eigen::MatrixXd::Identity(TargetShapeSegmentNum, TargetShapeSegmentNum);
 
 	return true;
+}
+
+void CorrFinder::ApplySeg(int index, int SorT)
+{
+	SurfaceMeshModel * proessShape;
+	int SegNum;
+	if (SorT == 0)
+	{
+		proessShape = SourceShape;
+		SegNum = SourceShapeSegmentNum;
+	}
+	else
+	{
+		proessShape = TargetShape;
+		SegNum = TargetShapeSegmentNum;
+	}
+	Surface_mesh::Face_iterator fit, fend = proessShape->faces_end();
+	Surface_mesh::Face_property<int> fseg = proessShape->face_property<int>("f:seg");
+	int findex = 0;
+	for (fit = proessShape->faces_begin(); fit != fend; ++fit)
+	{
+		fseg[fit] = SourceShapeSegmentIndex[index][findex];
+		findex++;
+	}
 }

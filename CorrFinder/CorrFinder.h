@@ -14,6 +14,7 @@ public:
 
 	bool LoadPairFile(QString filepath, bool hasPart = false, bool hasInbetween = false);
 	void DrawPartShape();
+	void GeneratePartSet();
 
 	SurfaceMeshModel * getSourceShape(){ return SourceShape; }
 	SurfaceMeshModel * getTargetShape(){ return TargetShape; }
@@ -21,11 +22,12 @@ public:
 private:
 	///////////////////////////////  Functions
 	bool LoadParialPartFile();
-	void ApplySegmentColor();
-	void ApplyPartColor();
+	void ApplySegmentColor(int sindex = -1);
+	void ApplyPartColor(int sindex = -1);
+	void ApplySeg(int index, int SorT);
 
 	void FindSegAdjacencyMatrix();
-
+	void FlatSegMerge(double threshold, int SorT);
 
 	///////////////////////////////  Variants
 	QVector< QColor > ColorMap;
@@ -42,18 +44,20 @@ private:
 	Eigen::MatrixXd SourceSegAdjacencyMatrix;
 	Eigen::MatrixXd TargetSegAdjacencyMatrix;
 
-	int SourceShapeSegmentNum, TargetShapeSegmentNum;
+	
 	QVector<int> SourceShapeSegmentJointIndex; //yes:1, no:-1
 	QVector<int> TargetShapeSegmentJointIndex;
 	QVector<QVector<Eigen::Vector3d>> SourceShapeSegmentAxis;
 	QVector<QVector<Eigen::Vector3d>> SourceShapeSegmentAxisDirection;
 	QVector<QVector<Eigen::Vector3d>> TargetShapeSegmentAxis;
 	QVector<QVector<Eigen::Vector3d>> TargetShapeSegmentAxisDirection;
-	QVector<int> SourceShapeSegmentIndex;
-	QVector<int> TargetShapeSegmentIndex;
+
+	int SourceShapeSegmentNum, TargetShapeSegmentNum;
+	QVector<QVector<int>> SourceShapeSegmentIndex;
+	QVector<QVector<int>> TargetShapeSegmentIndex;
 	int SourceShapePartNum, TargetShapePartNum;
-	QVector<int> SourceShapePartIndex;
-	QVector<int> TargetShapePartIndex;
+	QVector<QVector<int>> SourceShapePartIndex;
+	QVector<QVector<int>> TargetShapePartIndex;
 	QVector<QString> InbetweenShapes;
 };
 

@@ -123,6 +123,11 @@ void structureblending_mode::LoadShapePair()
 	}
 }
 
+void structureblending_mode::GeneratePartSet()
+{
+	corrfinder->GeneratePartSet();
+}
+
 void structureblending_mode::HasPartChange(int check)
 {
 	hasPart = check;
