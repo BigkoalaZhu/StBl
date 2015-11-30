@@ -24,10 +24,11 @@ private:
 	bool LoadParialPartFile();
 	void ApplySegmentColor(int sindex = -1);
 	void ApplyPartColor(int sindex = -1);
-	void ApplySeg(int index, int SorT);
+	void ApplySeg(int SorT);
 
 	void FindSegAdjacencyMatrix();
 	void FlatSegMerge(double threshold, int SorT);
+	void MergeTwoSegs(int A, int B, int SorT);
 
 	///////////////////////////////  Variants
 	QVector< QColor > ColorMap;
@@ -53,6 +54,8 @@ private:
 	QVector<QVector<Eigen::Vector3d>> TargetShapeSegmentAxisDirection;
 
 	int SourceShapeSegmentNum, TargetShapeSegmentNum;
+	QVector<int> SourceRealSegIndex;
+	QVector<int> TargetRealSegIndex;
 	QVector<QVector<int>> SourceShapeSegmentIndex;
 	QVector<QVector<int>> TargetShapeSegmentIndex;
 	int SourceShapePartNum, TargetShapePartNum;
