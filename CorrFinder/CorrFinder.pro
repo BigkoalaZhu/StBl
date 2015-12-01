@@ -19,9 +19,11 @@ INCLUDEPATH += ../UtilityLib
 
 HEADERS += \
     CorrFinder.h \
+	SymmetryAnalysis.h \
 	
 SOURCES += \
 	CorrFinder.cpp \
+	SymmetryAnalysis.cpp \
 	
 FORMS += \
 
