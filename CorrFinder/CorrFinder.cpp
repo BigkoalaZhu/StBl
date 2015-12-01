@@ -330,12 +330,14 @@ void CorrFinder::FlatSegMerge(double threshold, int SorT)
 	int SegNum;
 	QVector<QVector<int>> SegmentIndex;
 	Eigen::MatrixXd SegAdjacencyMatrix;
+	QVector<int> ShapeSegmentJointIndex;
 	if (SorT == 0)
 	{
 		proessShape = SourceShape;
 		SegNum = SourceShapeSegmentNum;
 		SegmentIndex = SourceShapeSegmentIndex;
 		SegAdjacencyMatrix = SourceSegAdjacencyMatrix;
+		ShapeSegmentJointIndex = SourceShapeSegmentJointIndex;
 	}
 	else
 	{
@@ -343,6 +345,7 @@ void CorrFinder::FlatSegMerge(double threshold, int SorT)
 		SegNum = TargetShapeSegmentNum;
 		SegmentIndex = TargetShapeSegmentIndex;
 		SegAdjacencyMatrix = TargetSegAdjacencyMatrix;
+		ShapeSegmentJointIndex = TargetShapeSegmentJointIndex;
 	}
 	
 	Surface_mesh::Vertex_property<Surface_mesh::Vector3> points = proessShape->vertex_property<Surface_mesh::Vector3>("v:point");
@@ -396,8 +399,18 @@ void CorrFinder::FlatSegMerge(double threshold, int SorT)
 	{
 		for (int j = i + 1; j < SegNum; j++)
 		{
-			if (SegAdjacencyMatrix(i, j) == 0 || SegFlat[i] * SegFlat[j] == 0)
+			if (SegAdjacencyMatrix(i, j) == 0 || SegFlat[i] + SegFlat[j] == 0)
 				continue;
+			if (SegFlat[i] == 0)
+			{
+				if (ShapeSegmentJointIndex[i] == 1)
+					continue;
+			}
+			else if (SegFlat[i] == 0)
+			{
+				if (ShapeSegmentJointIndex[j] == 1)
+					continue;
+			}
 			findex = 0;
 			std::vector<Vector3d> tmpPoints;
 			for (fit = proessShape->faces_begin(); fit != fend; ++fit){
@@ -416,25 +429,32 @@ void CorrFinder::FlatSegMerge(double threshold, int SorT)
 			double maxc = extants.maxCoeff();
 			double minc = extants.minCoeff();
 			double middlec;
-			for (int j = 0; j < 3; j++)
+			for (int k = 0; k < 3; k++)
 			{
-				if (extants[j] != maxc&&extants[j] != minc)
+				if (extants[k] != maxc&&extants[k] != minc)
 				{
-					middlec = extants[j];
+					middlec = extants[k];
 					break;
 				}
 
 			}
 			double oth = middlec / minc;
-			if (oth < threshold)
+			if (oth < threshold + 0.5)
 				continue;
 			MergeTwoSegs(i, j, SorT);
 
+			SegFlat[i] = 1;
 			SegFlat.erase(SegFlat.begin() + j);
 			if (SorT == 0)
+			{
 				SegAdjacencyMatrix = SourceSegAdjacencyMatrix;
+				ShapeSegmentJointIndex = SourceShapeSegmentJointIndex;
+			}
 			else
+			{
 				SegAdjacencyMatrix = TargetSegAdjacencyMatrix;
+				ShapeSegmentJointIndex = TargetShapeSegmentJointIndex;
+			}
 			j = i + 1;
 			SegNum--;
 		}
@@ -567,6 +587,16 @@ void CorrFinder::MergeStraightConnectedCylinders(int SorT)
 	for (int i = 0; i < SegNum; i++)
 		volumes.push_back(ShapeSegment[i]->bbox().sizes()[0] * ShapeSegment[i]->bbox().sizes()[1] * ShapeSegment[i]->bbox().sizes()[2]);
 
+	QVector<Eigen::Vector3d > directions;
+	for (int i = 0; i < SegNum; i++)
+	{
+		Eigen::Vector3d tmp = Eigen::Vector3d::Zero();
+		for each (Eigen::Vector3d d in SegmentAxisDirection[i])
+			tmp += d;
+		tmp = tmp / SegmentAxisDirection[i].size();
+		directions.push_back(tmp);
+	}
+
 	for (int i = 0; i < SegNum; i++)
 	{
 		for (int j = i + 1; j < SegNum; j++)
@@ -576,6 +606,29 @@ void CorrFinder::MergeStraightConnectedCylinders(int SorT)
 				double threshold = std::min(volumes[i] / volumes[j], volumes[j] / volumes[i]);
 				if (threshold > 0.3)
 					continue;
+				directions[i].normalize();
+				directions[j].normalize();
+				threshold = abs(directions[i].dot(directions[j]));
+				if (threshold > 0.9)
+				{
+					MergeTwoSegs(i, j, SorT);
+					directions[i] = (directions[i] + directions[j]) / 2;
+					volumes[i] = volumes[i] + volumes[j];
+					volumes.erase(volumes.begin() + j);
+					directions.erase(directions.begin() + j);
+					j = i + 1;
+					SegNum--;
+					if (SorT == 0)
+					{
+						SegAdjacencyMatrix = SourceSegAdjacencyMatrix;
+						SegmentJointIndex = SourceShapeSegmentJointIndex;
+					}
+					else
+					{
+						SegAdjacencyMatrix = TargetSegAdjacencyMatrix;
+						SegmentJointIndex = TargetShapeSegmentJointIndex;
+					}
+				}
 			}
 		}
 	}
@@ -589,7 +642,7 @@ void CorrFinder::GeneratePartSet()
 	GetSegFaceNum();
 	GenerateSegMeshes(0);
 	GenerateSegMeshes(1);
-	GenerateInitialGroups(0.3);
+//	GenerateInitialGroups(0.3);
 }
 
 void CorrFinder::GenerateInitialGroups(double t)
@@ -902,6 +955,9 @@ bool CorrFinder::LoadParialPartFile()
 
 	ApplySeg(0);
 	ApplySeg(1);
+
+	GetSegFaceNum();
+
 	GenerateSegMeshes(0);
 	GenerateSegMeshes(1);
 
