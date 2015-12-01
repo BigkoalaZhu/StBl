@@ -240,6 +240,90 @@ void CorrFinder::FindSegAdjacencyMatrix()
 
 }
 
+void CorrFinder::GetSegFaceNum()
+{
+	SourceSegFaceNum.resize(SourceShapeSegmentNum);
+	TargetSegFaceNum.resize(TargetShapeSegmentNum);
+	SourceSegFaceNum.fill(0);
+	TargetSegFaceNum.fill(0);
+
+	for (int i = 0; i < SourceShapeSegmentNum; i++)
+	{
+		for each (int flag in SourceShapeSegmentIndex[i])
+		{
+			SourceSegFaceNum[i] += flag;
+		}
+	}
+
+	for (int i = 0; i < TargetShapeSegmentNum; i++)
+	{
+		for each (int flag in TargetShapeSegmentIndex[i])
+		{
+			TargetSegFaceNum[i] += flag;
+		}
+	}
+}
+
+void CorrFinder::GenerateSegMeshes(int SorT)
+{
+	SurfaceMeshModel * proessShape;
+	int SegNum;
+	QVector<QVector<int>> SegmentIndex;
+	QVector<int> SegFaceNum;
+	if (SorT == 0)
+	{
+		proessShape = SourceShape;
+		SegNum = SourceShapeSegmentNum;
+		SegmentIndex = SourceShapeSegmentIndex;
+		SegFaceNum = SourceSegFaceNum;
+	}
+	else
+	{
+		proessShape = TargetShape;
+		SegNum = TargetShapeSegmentNum;
+		SegmentIndex = TargetShapeSegmentIndex;
+		SegFaceNum = TargetSegFaceNum;
+	}
+
+	Surface_mesh::Vertex_property<Vector3> points = proessShape->vertex_property<Vector3>("v:point");
+	QVector<SurfaceMeshModel *> SegmentMeshes;
+	SegmentMeshes.resize(SegNum);
+
+	for (int i = 0; i < SegNum; i++)
+	{
+		SurfaceMesh::SurfaceMeshModel * piece = new SurfaceMesh::SurfaceMeshModel;
+		piece->reserve(uint(SegFaceNum[i] * 3), uint(SegFaceNum[i] * 6), uint(SegFaceNum[i]));
+		for (auto v : proessShape->vertices())
+		{
+			piece->add_vertex(points[v]);
+		}
+		SegmentMeshes[i] = piece;
+	}
+
+	int findex = 0;
+	for (auto f : proessShape->faces()){
+		std::vector<SurfaceMesh::Vertex> face;
+		for (auto v : proessShape->vertices(f)) face.push_back(v);
+		for (int i = 0; i < SegNum; i++)
+			if (SegmentIndex[i][findex] == 1)
+				SegmentMeshes[i]->add_face(face);
+		findex++;
+	}
+
+	for (int i = 0; i < SegNum; i++)
+	{
+		for (auto v : SegmentMeshes[i]->vertices()) if (SegmentMeshes[i]->is_isolated(v)) SegmentMeshes[i]->remove_vertex(v);
+		SegmentMeshes[i]->garbage_collection();
+		SegmentMeshes[i]->updateBoundingBox();
+		SegmentMeshes[i]->update_face_normals();
+		SegmentMeshes[i]->update_vertex_normals();
+	}
+	if (SorT == 0)
+		SourceShapeSegment = SegmentMeshes;
+	else
+		TargetShapeSegment = SegmentMeshes;
+}
+
 void CorrFinder::FlatSegMerge(double threshold, int SorT)
 {
 	SurfaceMeshModel * proessShape;
@@ -451,11 +535,151 @@ void CorrFinder::MergeTwoSegs(int A, int B, int SorT)
 	ApplySeg(SorT);
 }
 
+void CorrFinder::MergeStraightConnectedCylinders(int SorT)
+{
+	QVector<SurfaceMeshModel *> ShapeSegment;
+	int SegNum;
+	Eigen::MatrixXd SegAdjacencyMatrix;
+	QVector<int> SegmentJointIndex;
+	QVector<QVector<Eigen::Vector3d>> SegmentAxis;
+	QVector<QVector<Eigen::Vector3d>> SegmentAxisDirection;
+
+	if (SorT == 0)
+	{
+		ShapeSegment = SourceShapeSegment;
+		SegNum = SourceShapeSegmentNum;
+		SegAdjacencyMatrix = SourceSegAdjacencyMatrix;
+		SegmentJointIndex = SourceShapeSegmentJointIndex;
+		SegmentAxis = SourceShapeSegmentAxis;
+		SegmentAxisDirection = SourceShapeSegmentAxisDirection;
+	}
+	else
+	{
+		ShapeSegment = TargetShapeSegment;
+		SegNum = TargetShapeSegmentNum;
+		SegAdjacencyMatrix = TargetSegAdjacencyMatrix;
+		SegmentJointIndex = TargetShapeSegmentJointIndex;
+		SegmentAxis = TargetShapeSegmentAxis;
+		SegmentAxisDirection = TargetShapeSegmentAxisDirection;
+	}
+
+	QVector<double> volumes;
+	for (int i = 0; i < SegNum; i++)
+		volumes.push_back(ShapeSegment[i]->bbox().sizes()[0] * ShapeSegment[i]->bbox().sizes()[1] * ShapeSegment[i]->bbox().sizes()[2]);
+
+	for (int i = 0; i < SegNum; i++)
+	{
+		for (int j = i + 1; j < SegNum; j++)
+		{
+			if (SegAdjacencyMatrix(i, j) == 1 && SegmentJointIndex[i] == 1 && SegmentJointIndex[j] == 1)
+			{
+				double threshold = std::min(volumes[i] / volumes[j], volumes[j] / volumes[i]);
+				if (threshold > 0.3)
+					continue;
+			}
+		}
+	}
+}
+
 void CorrFinder::GeneratePartSet()
 {
 	FindSegAdjacencyMatrix();
 	FlatSegMerge(1.7, 0);
 	FlatSegMerge(1.7, 1);
+	GetSegFaceNum();
+	GenerateSegMeshes(0);
+	GenerateSegMeshes(1);
+	GenerateInitialGroups(0.3);
+}
+
+void CorrFinder::GenerateInitialGroups(double t)
+{
+	for (int i = 0; i < SourceShapeSegmentNum; i++)
+	{
+		Eigen::AlignedBox3d mbboxi = SourceShapeSegment[i]->bbox();
+
+		SymmetryGroup tmpGroup;
+		tmpGroup.members.push_back(SourceShapeSegment[i]);
+		tmpGroup.labels.push_back(i);
+
+		for (int j = i + 1; j < SourceShapeSegmentNum; j++)
+		{
+			double sum = 0;
+			Eigen::AlignedBox3d mbboxj = SourceShapeSegment[j]->bbox();
+			sum += abs(mbboxi.sizes()[0] - mbboxj.sizes()[0]);
+			sum += abs(mbboxi.sizes()[1] - mbboxj.sizes()[1]);
+			sum += abs(mbboxi.sizes()[2] - mbboxj.sizes()[2]);
+
+			double threshold = std::min(mbboxi.sizes()[0] + mbboxi.sizes()[1] + mbboxi.sizes()[2], mbboxj.sizes()[0] + mbboxj.sizes()[1] + mbboxj.sizes()[2]);
+			if (sum / threshold < t)
+			{
+				tmpGroup.members.push_back(SourceShapeSegment[j]);
+				tmpGroup.labels.push_back(j);
+			}
+		}
+
+		bool isAdded = false;
+		for (int j = 0; j < SourceSegGroups.size(); j++)
+		{
+			int matched = 0;
+			for (int k = 0; k < tmpGroup.labels.size(); k++)
+			{
+				if (std::find(SourceSegGroups[j].labels.begin(), SourceSegGroups[j].labels.end(), tmpGroup.labels[k]) != SourceSegGroups[j].labels.end())
+					matched++;
+			}
+			if (matched == tmpGroup.labels.size())
+			{
+				isAdded = true;
+				break;
+			}
+		}
+		if (!isAdded)
+			SourceSegGroups.push_back(tmpGroup);
+	}
+
+	for (int i = 0; i < TargetShapeSegmentNum; i++)
+	{
+		Eigen::AlignedBox3d mbboxi = TargetShapeSegment[i]->bbox();
+
+		SymmetryGroup tmpGroup;
+		tmpGroup.members.push_back(TargetShapeSegment[i]);
+		tmpGroup.labels.push_back(i);
+
+		for (int j = i + 1; j < TargetShapeSegmentNum; j++)
+		{
+			double sum = 0;
+			Eigen::AlignedBox3d mbboxj = TargetShapeSegment[j]->bbox();
+			sum += abs(mbboxi.sizes()[0] - mbboxj.sizes()[0]);
+			sum += abs(mbboxi.sizes()[1] - mbboxj.sizes()[1]);
+			sum += abs(mbboxi.sizes()[2] - mbboxj.sizes()[2]);
+
+			double threshold = std::min(mbboxi.sizes()[0] + mbboxi.sizes()[1] + mbboxi.sizes()[2], mbboxj.sizes()[0] + mbboxj.sizes()[1] + mbboxj.sizes()[2]);
+			if (sum / threshold < t)
+			{
+				tmpGroup.members.push_back(TargetShapeSegment[j]);
+				tmpGroup.labels.push_back(j);
+			}
+		}
+
+		bool isAdded = false;
+		for (int j = 0; j < TargetSegGroups.size(); j++)
+		{
+			int matched = 0;
+			for (int k = 0; k < tmpGroup.labels.size(); k++)
+			{
+				if (std::find(TargetSegGroups[j].labels.begin(), TargetSegGroups[j].labels.end(), tmpGroup.labels[k]) != TargetSegGroups[j].labels.end())
+					matched++;
+			}
+			if (matched == tmpGroup.labels.size())
+			{
+				isAdded = true;
+				break;
+			}
+		}
+		if (!isAdded)
+			TargetSegGroups.push_back(tmpGroup);
+	}
+
 }
 
 void CorrFinder::ApplyPartColor(int sindex)
@@ -678,6 +902,8 @@ bool CorrFinder::LoadParialPartFile()
 
 	ApplySeg(0);
 	ApplySeg(1);
+	GenerateSegMeshes(0);
+	GenerateSegMeshes(1);
 
 	return true;
 }

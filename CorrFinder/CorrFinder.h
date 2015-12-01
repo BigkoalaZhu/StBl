@@ -6,6 +6,8 @@
 #include "SurfaceMeshModel.h"
 using namespace SurfaceMesh;
 
+#include "SymmetryAnalysis.h"
+
 class CorrFinder
 {
 public:
@@ -29,6 +31,10 @@ private:
 	void FindSegAdjacencyMatrix();
 	void FlatSegMerge(double threshold, int SorT);
 	void MergeTwoSegs(int A, int B, int SorT);
+	void GenerateSegMeshes(int SorT);
+	void GetSegFaceNum();
+	void GenerateInitialGroups(double t);
+	void MergeStraightConnectedCylinders(int SorT);
 
 	///////////////////////////////  Variants
 	QVector< QColor > ColorMap;
@@ -58,9 +64,17 @@ private:
 	QVector<int> TargetRealSegIndex;
 	QVector<QVector<int>> SourceShapeSegmentIndex;
 	QVector<QVector<int>> TargetShapeSegmentIndex;
+	QVector<SurfaceMeshModel *> SourceShapeSegment;
+	QVector<SurfaceMeshModel *> TargetShapeSegment;
+	QVector<int> SourceSegFaceNum;
+	QVector<int> TargetSegFaceNum;
+
 	int SourceShapePartNum, TargetShapePartNum;
 	QVector<QVector<int>> SourceShapePartIndex;
 	QVector<QVector<int>> TargetShapePartIndex;
 	QVector<QString> InbetweenShapes;
+
+	QVector<SymmetryGroup> SourceSegGroups;
+	QVector<SymmetryGroup> TargetSegGroups;
 };
 
