@@ -46,8 +46,10 @@ private:
 	bool IsFlatMerge(int indexA, int indexB, int SorT);
 
 	SurfaceMeshModel * mergedSeg(QVector<int> indexes, int SorT);
-	bool IsFlatMerge(SurfaceMeshModel * segA, SurfaceMeshModel * segB);
-	bool IsSmoothConnected(SegmentGroup groupA, SegmentGroup groupB, double threshold, int &type);
+	bool IsFlatMerge(SegmentGroup groupA, SegmentGroup groupB);
+	bool IsSmoothConnected(SegmentGroup groupA, SegmentGroup groupB, int &type, double threshold = 0.8);
+	bool IsAdjacented(SegmentGroup groupA, SegmentGroup groupB);
+	bool IsExistedGroups(QVector<SegmentGroup> groups, SegmentGroup test);
 	void MergeSegToParts(int SorT);
 	SegmentGroup MergeGroups(SegmentGroup groupA, SegmentGroup groupB, int type);
 

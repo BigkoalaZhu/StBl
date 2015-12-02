@@ -3,6 +3,7 @@
 #include "QuickMeshDraw.h"
 #include <qfile.h>
 #include "OBB_Volume.h"
+#include "UtilityGlobal.h"
 
 CorrFinder::CorrFinder()
 {
@@ -663,7 +664,7 @@ SurfaceMeshModel * CorrFinder::mergedSeg(QVector<int> indexes, int SorT)
 	SurfaceMesh::SurfaceMeshModel * piece = new SurfaceMesh::SurfaceMeshModel;
 	int totalFaceNum = 0;
 	for each (int n in indexes)
-		totalFaceNum += SegFaceNum[indexes[n]];
+		totalFaceNum += SegFaceNum[n];
 
 	piece->reserve(uint(totalFaceNum * 3), uint(totalFaceNum * 6), uint(totalFaceNum));
 	for (auto v : proessShape->vertices())
@@ -695,7 +696,106 @@ SurfaceMeshModel * CorrFinder::mergedSeg(QVector<int> indexes, int SorT)
 
 void CorrFinder::MergeSegToParts(int SorT)
 {
+	SurfaceMeshModel * proessShape;
+	int SegNum;
+	QVector<QVector<int>> SegmentIndex;
+	Eigen::MatrixXd SegAdjacencyMatrix;
+	QVector<int> SegmentJointIndex;
+	QVector<QVector<Eigen::Vector3d>> SegmentAxis;
+	QVector<QVector<Eigen::Vector3d>> SegmentAxisDirection;
 
+	if (SorT == 0)
+	{
+		proessShape = SourceShape;
+		SegNum = SourceShapeSegmentNum;
+		SegmentIndex = SourceShapeSegmentIndex;
+		SegAdjacencyMatrix = SourceSegAdjacencyMatrix;
+		SegmentJointIndex = SourceShapeSegmentJointIndex;
+		SegmentAxis = SourceShapeSegmentAxis;
+		SegmentAxisDirection = SourceShapeSegmentAxisDirection;
+	}
+	else
+	{
+		proessShape = TargetShape;
+		SegNum = TargetShapeSegmentNum;
+		SegmentIndex = TargetShapeSegmentIndex;
+		SegAdjacencyMatrix = TargetSegAdjacencyMatrix;
+		SegmentJointIndex = TargetShapeSegmentJointIndex;
+		SegmentAxis = TargetShapeSegmentAxis;
+		SegmentAxisDirection = TargetShapeSegmentAxisDirection;
+	}
+
+	QVector<SegmentGroup> SegGroups;
+	for (int i = 0; i < SegNum; i++)
+	{
+		if (SegmentJointIndex[i] == -1)
+			continue;
+		SegmentGroup newgroup;
+		newgroup.labels.push_back(i);
+		newgroup.members = mergedSeg(newgroup.labels, SorT);
+		newgroup.SegmentAxis = SegmentAxis[i];
+		newgroup.SegmentAxisDirection = SegmentAxisDirection[i];
+		newgroup.SorT = SorT;
+		SegGroups.push_back(newgroup);
+	}
+
+	int candidatesNum = SegGroups.size();
+	for (int i = 0; i < SegGroups.size(); i++)
+	{
+		if (i > candidatesNum)
+			candidatesNum = SegGroups.size();
+		for (int j = 0; j < candidatesNum; j++)
+		{
+			if (i == j)
+				continue;
+
+			if (!IsAdjacented(SegGroups[i], SegGroups[j]))
+				continue;
+
+			int type = -1;
+			if (!IsSmoothConnected(SegGroups[i], SegGroups[j], type))
+				continue;
+
+			SegmentGroup newgroup = MergeGroups(SegGroups[i], SegGroups[j], type);
+			if (!IsExistedGroups(SegGroups, newgroup))
+				SegGroups.push_back(newgroup);
+		}
+	}
+	candidatesNum = SegGroups.size();
+}
+
+bool CorrFinder::IsExistedGroups(QVector<SegmentGroup> groups, SegmentGroup test)
+{
+	for (int i = 0; i < groups.size(); i++)
+		if (QVectorisEqual(groups[i].labels, test.labels))
+			return true;
+	return false;
+}
+
+bool CorrFinder::IsAdjacented(SegmentGroup groupA, SegmentGroup groupB)
+{
+	Eigen::MatrixXd SegAdjacencyMatrix;
+
+	if (groupA.SorT == 0)
+	{
+		SegAdjacencyMatrix = SourceSegAdjacencyMatrix;
+	}
+	else
+	{
+		SegAdjacencyMatrix = TargetSegAdjacencyMatrix;
+	}
+
+	for (int i = 0; i < groupA.labels.size(); i++)
+	{
+		for (int j = 0; j < groupB.labels.size(); j++)
+		{
+			if (groupA.labels[i] == groupB.labels[j])
+				return true;
+			if (SegAdjacencyMatrix(groupA.labels[i], groupB.labels[j]) == 1)
+				return true;
+		}
+	}
+	return false;
 }
 
 SegmentGroup CorrFinder::MergeGroups(SegmentGroup groupA, SegmentGroup groupB, int type)
@@ -737,7 +837,7 @@ SegmentGroup CorrFinder::MergeGroups(SegmentGroup groupA, SegmentGroup groupB, i
 	SurfaceMesh::SurfaceMeshModel * piece = new SurfaceMesh::SurfaceMeshModel;
 	int totalFaceNum = 0;
 	for each (int n in newgroup.labels)
-		totalFaceNum += SegFaceNum[newgroup.labels[n]];
+		totalFaceNum += SegFaceNum[n];
 
 	piece->reserve(uint(totalFaceNum * 3), uint(totalFaceNum * 6), uint(totalFaceNum));
 	for (auto v : proessShape->vertices())
@@ -813,7 +913,7 @@ SegmentGroup CorrFinder::MergeGroups(SegmentGroup groupA, SegmentGroup groupB, i
 	return newgroup;
 }
 
-bool CorrFinder::IsSmoothConnected(SegmentGroup groupA, SegmentGroup groupB, double threshold,int &type)
+bool CorrFinder::IsSmoothConnected(SegmentGroup groupA, SegmentGroup groupB, int &type, double threshold)
 {
 	double distance[4];
 	distance[0] = (groupA.SegmentAxis[0] - groupB.SegmentAxis[0]).norm();
@@ -824,6 +924,23 @@ bool CorrFinder::IsSmoothConnected(SegmentGroup groupA, SegmentGroup groupB, dou
 	if (distance[0] <= distance[1] && distance[0] <= distance[2] && distance[0] <= distance[3])
 	{
 		type = 0;
+
+		for (int i = 0; i < groupB.SegmentAxis.size(); i++)
+		{
+			if (i == 0)
+				continue;
+			if ((groupA.SegmentAxis[0] - groupB.SegmentAxis[i]).norm() < distance[0])
+				return false;
+		}
+
+		for (int i = 0; i < groupA.SegmentAxis.size(); i++)
+		{
+			if (i == 0)
+				continue;
+			if ((groupA.SegmentAxis[i] - groupB.SegmentAxis[0]).norm() < distance[0])
+				return false;
+		}
+
 		Eigen::Vector3d d1 = groupA.SegmentAxisDirection[0].normalized();
 		Eigen::Vector3d d2 = groupB.SegmentAxisDirection[0].normalized();
 		if (abs(d1.dot(d2) > threshold))
@@ -832,6 +949,23 @@ bool CorrFinder::IsSmoothConnected(SegmentGroup groupA, SegmentGroup groupB, dou
 	if (distance[1] <= distance[0] && distance[1] <= distance[2] && distance[1] <= distance[1])
 	{
 		type = 1;
+
+		for (int i = 0; i < groupB.SegmentAxis.size(); i++)
+		{
+			if (i == groupB.SegmentAxis.size() - 1)
+				continue;
+			if ((groupA.SegmentAxis[0] - groupB.SegmentAxis[i]).norm() < distance[1])
+				return false;
+		}
+
+		for (int i = 0; i < groupA.SegmentAxis.size(); i++)
+		{
+			if (i == 0)
+				continue;
+			if ((groupA.SegmentAxis[i] - groupB.SegmentAxis[groupB.SegmentAxis.size() - 1]).norm() < distance[1])
+				return false;
+		}
+
 		Eigen::Vector3d d1 = groupA.SegmentAxisDirection[0].normalized();
 		Eigen::Vector3d d2 = groupB.SegmentAxisDirection[groupB.SegmentAxis.size() - 1].normalized();
 		if (abs(d1.dot(d2) > threshold))
@@ -840,6 +974,23 @@ bool CorrFinder::IsSmoothConnected(SegmentGroup groupA, SegmentGroup groupB, dou
 	if (distance[2] <= distance[0] && distance[2] <= distance[2] && distance[2] <= distance[1])
 	{
 		type = 2;
+
+		for (int i = 0; i < groupB.SegmentAxis.size(); i++)
+		{
+			if (i == 0)
+				continue;
+			if ((groupA.SegmentAxis[groupA.SegmentAxis.size() - 1] - groupB.SegmentAxis[i]).norm() < distance[2])
+				return false;
+		}
+
+		for (int i = 0; i < groupA.SegmentAxis.size(); i++)
+		{
+			if (i == groupA.SegmentAxis.size() - 1)
+				continue;
+			if ((groupA.SegmentAxis[i] - groupB.SegmentAxis[0]).norm() < distance[2])
+				return false;
+		}
+
 		Eigen::Vector3d d1 = groupA.SegmentAxisDirection[groupA.SegmentAxis.size() - 1].normalized();
 		Eigen::Vector3d d2 = groupB.SegmentAxisDirection[0].normalized();
 		if (abs(d1.dot(d2) > threshold))
@@ -848,6 +999,23 @@ bool CorrFinder::IsSmoothConnected(SegmentGroup groupA, SegmentGroup groupB, dou
 	if (distance[3] <= distance[0] && distance[3] <= distance[2] && distance[3] <= distance[1])
 	{
 		type = 3;
+
+		for (int i = 0; i < groupB.SegmentAxis.size(); i++)
+		{
+			if (i == groupB.SegmentAxis.size() - 1)
+				continue;
+			if ((groupA.SegmentAxis[groupA.SegmentAxis.size() - 1] - groupB.SegmentAxis[i]).norm() < distance[3])
+				return false;
+		}
+
+		for (int i = 0; i < groupA.SegmentAxis.size(); i++)
+		{
+			if (i == groupA.SegmentAxis.size() - 1)
+				continue;
+			if ((groupA.SegmentAxis[i] - groupB.SegmentAxis[groupB.SegmentAxis.size() - 1]).norm() < distance[3])
+				return false;
+		}
+
 		Eigen::Vector3d d1 = groupA.SegmentAxisDirection[groupA.SegmentAxis.size() - 1].normalized();
 		Eigen::Vector3d d2 = groupB.SegmentAxisDirection[groupB.SegmentAxis.size() - 1].normalized();
 		if (abs(d1.dot(d2) > threshold))
@@ -857,10 +1025,10 @@ bool CorrFinder::IsSmoothConnected(SegmentGroup groupA, SegmentGroup groupB, dou
 	return false;
 }
 
-bool CorrFinder::IsFlatMerge(SurfaceMeshModel * segA, SurfaceMeshModel * segB)
+bool CorrFinder::IsFlatMerge(SegmentGroup groupA, SegmentGroup groupB)
 {
-	OBB_Volume obbA(segA);
-	OBB_Volume obbB(segB);
+	OBB_Volume obbA(groupA.members);
+	OBB_Volume obbB(groupB.members);
 
 	Eigen::Vector3d extantsA = obbA.extents();
 	Eigen::Vector3d extantsB = obbB.extents();
@@ -992,11 +1160,8 @@ void CorrFinder::GeneratePartSet()
 	GetSegFaceNum();
 	GenerateSegMeshes(0);
 	GenerateSegMeshes(1);
-}
-
-bool CorrFinder::IsSmoothConnected(int indexA, int indexB, int SorT)
-{
-
+	MergeSegToParts(0);
+	MergeSegToParts(1);
 }
 
 /*void CorrFinder::GenerateInitialGroups(double t)
@@ -1193,7 +1358,7 @@ bool CorrFinder::LoadParialPartFile()
 			str = in_source.readLine();
 			strtmp = str.split(" ");
 			Eigen::Vector3d direction(strtmp[0].toDouble(), strtmp[1].toDouble(), strtmp[2].toDouble());
-			SourceShapeSegmentAxisDirection[i][j] = vertex;
+			SourceShapeSegmentAxisDirection[i][j] = direction;
 		}
 
 		str = in_source.readLine();
@@ -1227,7 +1392,7 @@ bool CorrFinder::LoadParialPartFile()
 			str = in_target.readLine();
 			strtmp = str.split(" ");
 			Eigen::Vector3d direction(strtmp[0].toDouble(), strtmp[1].toDouble(), strtmp[2].toDouble());
-			TargetShapeSegmentAxisDirection[i][j] = vertex;
+			TargetShapeSegmentAxisDirection[i][j] = direction;
 		}
 
 		str = in_target.readLine();

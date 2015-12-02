@@ -351,6 +351,26 @@ static inline bool copyFileToPath(QString sourceDir, QString toDir, bool coverFi
 	}
 	return true;
 }
+
+static inline bool QVectorisEqual(QVector<int> A, QVector<int> B)
+{
+	if (A.size() != B.size())
+		return false;
+
+	int totalA = 0, totalB = 0;
+	for (int i = 0; i < A.size(); i++)
+		if (B.contains(A[i]))
+			totalA++;
+
+	for (int i = 0; i < B.size(); i++)
+		if (A.contains(B[i]))
+			totalB++;
+
+	if (totalA != B.size() || totalB != A.size())
+		return false;
+
+	return true;
+}
   
 static inline bool copyDirectoryFiles(const QString &fromDir, const QString &toDir, bool coverFileIfExist)
 {
