@@ -8,6 +8,14 @@ using namespace SurfaceMesh;
 
 #include "SymmetryAnalysis.h"
 
+struct SegmentGroup {
+	SurfaceMesh::SurfaceMeshModel * members;
+	QVector<Eigen::Vector3d> SegmentAxisDirection;
+	QVector<Eigen::Vector3d> SegmentAxis;
+	QVector<int> labels;
+	int SorT;
+};
+
 class CorrFinder
 {
 public:
@@ -34,7 +42,14 @@ private:
 	void GenerateSegMeshes(int SorT);
 	void GetSegFaceNum();
 	void GenerateInitialGroups(double t);
-	void MergeStraightConnectedCylinders(int SorT);
+	void MergeStraightConnectedCylinders(int SorT); // Seems useless
+	bool IsFlatMerge(int indexA, int indexB, int SorT);
+
+	SurfaceMeshModel * mergedSeg(QVector<int> indexes, int SorT);
+	bool IsFlatMerge(SurfaceMeshModel * segA, SurfaceMeshModel * segB);
+	bool IsSmoothConnected(SegmentGroup groupA, SegmentGroup groupB, double threshold, int &type);
+	void MergeSegToParts(int SorT);
+	SegmentGroup MergeGroups(SegmentGroup groupA, SegmentGroup groupB, int type);
 
 	///////////////////////////////  Variants
 	QVector< QColor > ColorMap;
@@ -74,7 +89,7 @@ private:
 	QVector<QVector<int>> TargetShapePartIndex;
 	QVector<QString> InbetweenShapes;
 
-	QVector<SymmetryGroup> SourceSegGroups;
-	QVector<SymmetryGroup> TargetSegGroups;
+	QVector<SegmentGroup> SourceSegGroups;
+	QVector<SegmentGroup> TargetSegGroups;
 };
 
