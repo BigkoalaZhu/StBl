@@ -10,8 +10,9 @@ class stbl_widget: public QWidget{
 public:
     explicit stbl_widget(structureblending_mode * m = 0);
     ~stbl_widget();
+
+	Ui::stbl_widget *ui;
 private:
-    Ui::stbl_widget *ui;
     structureblending_mode *mode;
 
 public slots:

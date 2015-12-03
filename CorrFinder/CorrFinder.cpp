@@ -197,6 +197,9 @@ void CorrFinder::FindSegAdjacencyMatrix()
 	Surface_mesh::Face_property<QVector<int>> fsseg = SourceShape->face_property<QVector<int>>("f:seg");
 	Surface_mesh::Face_property<QVector<int>> ftseg = TargetShape->face_property<QVector<int>>("f:seg");
 
+	SourceSegAdjacencyMatrix = Eigen::MatrixXd::Identity(SourceShapeSegmentNum, SourceShapeSegmentNum);
+	TargetSegAdjacencyMatrix = Eigen::MatrixXd::Identity(TargetShapeSegmentNum, TargetShapeSegmentNum);
+
 	for (vit = SourceShape->vertices_begin(); vit != SourceShape->vertices_end(); ++vit)
 	{
 		QVector<int> segs;
@@ -218,6 +221,31 @@ void CorrFinder::FindSegAdjacencyMatrix()
 		}
 	}
 
+	for (int i = 0; i < SourceShapeSegmentNum; i++)
+	{
+		QVector<int> segs;
+		if (SourceShapeSegmentJointIndex[i] == 1)
+			continue;
+		for (int j = 0; j < SourceShapeSegmentNum; j++)
+		{
+			if (i == j || SourceShapeSegmentJointIndex[i] == 1)
+				continue;
+			if (SourceSegAdjacencyMatrix(i, j) == 1)
+				segs.push_back(j);
+		}
+		for (int k = 0; k < segs.size(); k++)
+		{
+			for (int j = k + 1; j < segs.size(); j++)
+			{
+				if (segs[k] != segs[j])
+				{
+					SourceSegAdjacencyMatrix(segs[k], segs[j]) = 1;
+					SourceSegAdjacencyMatrix(segs[j], segs[k]) = 1;
+				}
+			}
+		}
+	}
+
 	for (vit = TargetShape->vertices_begin(); vit != TargetShape->vertices_end(); ++vit)
 	{
 		QVector<int> segs;
@@ -235,6 +263,31 @@ void CorrFinder::FindSegAdjacencyMatrix()
 					TargetSegAdjacencyMatrix(segs[i], segs[j]) = 1;
 					TargetSegAdjacencyMatrix(segs[j], segs[i]) = 1;
 				}		
+			}
+		}
+	}
+
+	for (int i = 0; i < TargetShapeSegmentNum; i++)
+	{
+		QVector<int> segs;
+		if (TargetShapeSegmentJointIndex[i] == 1)
+			continue;
+		for (int j = 0; j < TargetShapeSegmentNum; j++)
+		{
+			if (i == j || TargetShapeSegmentJointIndex[i] == 1)
+				continue;
+			if (TargetSegAdjacencyMatrix(i, j) == 1)
+				segs.push_back(j);
+		}
+		for (int k = 0; k < segs.size(); k++)
+		{
+			for (int j = k + 1; j < segs.size(); j++)
+			{
+				if (segs[k] != segs[j])
+				{
+					TargetSegAdjacencyMatrix(segs[k], segs[j]) = 1;
+					TargetSegAdjacencyMatrix(segs[j], segs[k]) = 1;
+				}
 			}
 		}
 	}
@@ -761,7 +814,30 @@ void CorrFinder::MergeSegToParts(int SorT)
 				SegGroups.push_back(newgroup);
 		}
 	}
-	candidatesNum = SegGroups.size();
+
+	for (int i = 0; i < SegGroups.size(); i++)
+	{
+		if (SegGroups[i].labels.size() < 2)
+			continue;
+		for (int j = 0; j < SegNum; j++)
+		{
+			if (SegmentJointIndex[j] == 1)
+				continue;
+			int add = 0;
+			for (int k = 0; k < SegGroups[i].labels.size(); k++)
+				if (SegAdjacencyMatrix(SegGroups[i].labels[k], j) == 1)
+				{
+					add ++;
+				}
+			if (add > 1)
+				SegGroups[i].labels.push_back(j);
+		}
+	}
+
+	if (SorT == 0)
+		SourceSegGroups = SegGroups;
+	else
+		TargetSegGroups = SegGroups;
 }
 
 bool CorrFinder::IsExistedGroups(QVector<SegmentGroup> groups, SegmentGroup test)
@@ -943,10 +1019,11 @@ bool CorrFinder::IsSmoothConnected(SegmentGroup groupA, SegmentGroup groupB, int
 
 		Eigen::Vector3d d1 = groupA.SegmentAxisDirection[0].normalized();
 		Eigen::Vector3d d2 = groupB.SegmentAxisDirection[0].normalized();
-		if (abs(d1.dot(d2) > threshold))
+		double tmp = abs(d1.dot(d2));
+		if (abs(d1.dot(d2)) > threshold)
 			return true;
 	}	
-	if (distance[1] <= distance[0] && distance[1] <= distance[2] && distance[1] <= distance[1])
+	if (distance[1] <= distance[0] && distance[1] <= distance[2] && distance[1] <= distance[3])
 	{
 		type = 1;
 
@@ -968,10 +1045,11 @@ bool CorrFinder::IsSmoothConnected(SegmentGroup groupA, SegmentGroup groupB, int
 
 		Eigen::Vector3d d1 = groupA.SegmentAxisDirection[0].normalized();
 		Eigen::Vector3d d2 = groupB.SegmentAxisDirection[groupB.SegmentAxis.size() - 1].normalized();
-		if (abs(d1.dot(d2) > threshold))
+		double tmp = abs(d1.dot(d2));
+		if (abs(d1.dot(d2)) > threshold)
 			return true;
 	}
-	if (distance[2] <= distance[0] && distance[2] <= distance[2] && distance[2] <= distance[1])
+	if (distance[2] <= distance[0] && distance[2] <= distance[3] && distance[2] <= distance[1])
 	{
 		type = 2;
 
@@ -993,7 +1071,8 @@ bool CorrFinder::IsSmoothConnected(SegmentGroup groupA, SegmentGroup groupB, int
 
 		Eigen::Vector3d d1 = groupA.SegmentAxisDirection[groupA.SegmentAxis.size() - 1].normalized();
 		Eigen::Vector3d d2 = groupB.SegmentAxisDirection[0].normalized();
-		if (abs(d1.dot(d2) > threshold))
+		double tmp = abs(d1.dot(d2));
+		if (abs(d1.dot(d2)) > threshold)
 			return true;
 	}
 	if (distance[3] <= distance[0] && distance[3] <= distance[2] && distance[3] <= distance[1])
@@ -1018,7 +1097,8 @@ bool CorrFinder::IsSmoothConnected(SegmentGroup groupA, SegmentGroup groupB, int
 
 		Eigen::Vector3d d1 = groupA.SegmentAxisDirection[groupA.SegmentAxis.size() - 1].normalized();
 		Eigen::Vector3d d2 = groupB.SegmentAxisDirection[groupB.SegmentAxis.size() - 1].normalized();
-		if (abs(d1.dot(d2) > threshold))
+		double tmp = abs(d1.dot(d2));
+		if (abs(d1.dot(d2)) > threshold)
 			return true;
 	}
 
@@ -1160,8 +1240,46 @@ void CorrFinder::GeneratePartSet()
 	GetSegFaceNum();
 	GenerateSegMeshes(0);
 	GenerateSegMeshes(1);
+	FindSegAdjacencyMatrix();
 	MergeSegToParts(0);
 	MergeSegToParts(1);
+}
+
+void CorrFinder::DrawSpecificPart(int index, int SorT)
+{
+	SurfaceMeshModel * proessShape;
+	QVector<QVector<int>> SegmentIndex;
+	QVector<SegmentGroup> SegGroups;
+
+	if (SorT == 0)
+	{
+		proessShape = SourceShape;
+		SegmentIndex = SourceShapeSegmentIndex;
+		SegGroups = SourceSegGroups;
+	}
+	else
+	{
+		proessShape = TargetShape;
+		SegmentIndex = TargetShapeSegmentIndex;
+		SegGroups = TargetSegGroups;
+	}
+	Surface_mesh::Face_property<QColor> fcolors = proessShape->face_property<QColor>("f:partcolor");
+
+	Surface_mesh::Face_iterator fit, fend = proessShape->faces_end();
+
+	int findex = 0;
+	for (fit = proessShape->faces_begin(); fit != fend; ++fit){
+		fcolors[fit] = QColor(255, 255, 255);
+		for (int i = 0; i < SegGroups[index].labels.size(); i++)
+		{
+			if (SegmentIndex[SegGroups[index].labels[i]][findex] == 1)
+			{
+				fcolors[fit] = QColor(255, 0, 0);
+				break;
+			}
+		}
+		findex++;
+	}
 }
 
 /*void CorrFinder::GenerateInitialGroups(double t)

@@ -25,9 +25,13 @@ public:
 	bool LoadPairFile(QString filepath, bool hasPart = false, bool hasInbetween = false);
 	void DrawPartShape();
 	void GeneratePartSet();
+	void DrawSpecificPart(int index, int SorT);
 
 	SurfaceMeshModel * getSourceShape(){ return SourceShape; }
 	SurfaceMeshModel * getTargetShape(){ return TargetShape; }
+
+	QVector<SegmentGroup> SourceSegGroups;
+	QVector<SegmentGroup> TargetSegGroups;
 
 private:
 	///////////////////////////////  Functions
@@ -52,7 +56,6 @@ private:
 	bool IsExistedGroups(QVector<SegmentGroup> groups, SegmentGroup test);
 	void MergeSegToParts(int SorT);
 	SegmentGroup MergeGroups(SegmentGroup groupA, SegmentGroup groupB, int type);
-
 	///////////////////////////////  Variants
 	QVector< QColor > ColorMap;
 
@@ -90,8 +93,5 @@ private:
 	QVector<QVector<int>> SourceShapePartIndex;
 	QVector<QVector<int>> TargetShapePartIndex;
 	QVector<QString> InbetweenShapes;
-
-	QVector<SegmentGroup> SourceSegGroups;
-	QVector<SegmentGroup> TargetSegGroups;
 };
 

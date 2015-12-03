@@ -69,6 +69,8 @@ public slots:
 	/////////////////////////////////////////////Correspondence
 	void LoadShapePair();
 	void GeneratePartSet();
+	void SourceSeleclPart(QModelIndex);
+	void TargetSeleclPart(QModelIndex);
 	
 };
 

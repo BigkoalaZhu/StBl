@@ -123,9 +123,42 @@ void structureblending_mode::LoadShapePair()
 	}
 }
 
+void structureblending_mode::SourceSeleclPart(QModelIndex index)
+{
+	corrfinder->DrawSpecificPart(index.row(), 0);
+	drawArea()->updateGL();
+}
+
+void structureblending_mode::TargetSeleclPart(QModelIndex index)
+{
+	corrfinder->DrawSpecificPart(index.row(), 1);
+	drawArea()->updateGL();
+}
+
 void structureblending_mode::GeneratePartSet()
 {
 	corrfinder->GeneratePartSet();
+	QStringList SourcePartList, TargetPartList;
+	for (int i = 0; i < corrfinder->SourceSegGroups.size(); i++)
+	{
+		QString tmp = QString::number(i);
+		SourcePartList += tmp;
+	}
+
+	for (int i = 0; i < corrfinder->SourceSegGroups.size(); i++)
+	{
+		QString tmp = QString::number(i);
+		TargetPartList += tmp;
+	}
+
+	QStringListModel * SourceModel;
+	QStringListModel * TargetModel;
+
+	SourceModel = new QStringListModel(SourcePartList);
+	TargetModel = new QStringListModel(TargetPartList);
+
+	widget->ui->SourcrPartSet->setModel(SourceModel);
+	widget->ui->TargetPartSet->setModel(TargetModel);
 }
 
 void structureblending_mode::HasPartChange(int check)
