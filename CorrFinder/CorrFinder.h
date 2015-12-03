@@ -71,6 +71,9 @@ private:
 	Eigen::MatrixXd SourceSegAdjacencyMatrix;
 	Eigen::MatrixXd TargetSegAdjacencyMatrix;
 
+	Eigen::MatrixXd SourceRealSegAdjacencyMatrix;
+	Eigen::MatrixXd TargetRealSegAdjacencyMatrix;
+
 	
 	QVector<int> SourceShapeSegmentJointIndex; //yes:1, no:-1
 	QVector<int> TargetShapeSegmentJointIndex;

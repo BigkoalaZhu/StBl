@@ -4,6 +4,7 @@
 #include <qfile.h>
 #include "OBB_Volume.h"
 #include "UtilityGlobal.h"
+#include "SegGraph.h"
 
 CorrFinder::CorrFinder()
 {
@@ -1241,8 +1242,27 @@ void CorrFinder::GeneratePartSet()
 	GenerateSegMeshes(0);
 	GenerateSegMeshes(1);
 	FindSegAdjacencyMatrix();
-	MergeSegToParts(0);
-	MergeSegToParts(1);
+
+
+	SegGraph Graph;
+	int rnum = 0;
+	for (int i = 0; i < SourceShapeSegmentNum; i++)
+	{
+		if (SourceShapeSegmentJointIndex[i] == -1)
+			continue;
+		SegGraphNode tmp;
+		tmp.labels.push_back(i);
+		tmp.lowest = SourceShapeSegment[i]->bbox().min()[2];
+		Graph.AddNode(tmp);
+		rnum++;
+	}
+	SourceRealSegAdjacencyMatrix = SourceSegAdjacencyMatrix.block(0, 0, rnum, rnum);
+	Graph.AddAdjacencyMatrix(SourceRealSegAdjacencyMatrix);
+	Graph.BuildInitialGraph();
+	Graph.OutputInitialGraph();
+
+//	MergeSegToParts(0);
+//	MergeSegToParts(1);
 }
 
 void CorrFinder::DrawSpecificPart(int index, int SorT)

@@ -20,10 +20,12 @@ INCLUDEPATH += ../UtilityLib
 HEADERS += \
     CorrFinder.h \
 	SymmetryAnalysis.h \
+	SegGraph.h \
 	
 SOURCES += \
 	CorrFinder.cpp \
 	SymmetryAnalysis.cpp \
+	SegGraph.cpp \
 	
 FORMS += \
 
