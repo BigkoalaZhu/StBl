@@ -748,6 +748,94 @@ SurfaceMeshModel * CorrFinder::mergedSeg(QVector<int> indexes, int SorT)
 	return piece;
 }
 
+void CorrFinder::MergeGraphSegToParts(int SorT)
+{
+	QVector<SegmentGroupFromGraph> GraphGroups;
+	int SegNum;
+	Eigen::MatrixXd SegAdjacencyMatrix;
+	QVector<int> SegmentJointIndex;
+
+	if (SorT == 0)
+	{
+		GraphGroups = SourceGraphGroups;
+		SegAdjacencyMatrix = SourceSegAdjacencyMatrix;
+		SegmentJointIndex = SourceShapeSegmentJointIndex;
+		SegNum = SourceShapeSegmentNum;
+	}
+	else
+	{
+		GraphGroups = TargetGraphGroups;
+		SegAdjacencyMatrix = TargetSegAdjacencyMatrix;
+		SegmentJointIndex = TargetShapeSegmentJointIndex;
+		SegNum = TargetShapeSegmentNum;
+	}
+
+	int candidatesNum = GraphGroups.size();
+	for (int i = 0; i < GraphGroups.size(); i++)
+	{
+		if (i > candidatesNum)
+			candidatesNum = GraphGroups.size();
+		for (int j = 0; j < candidatesNum; j++)
+		{
+			if (i == j)
+				continue;
+
+			QVector<int> align;
+			if (!IsAdjacented(GraphGroups[i], GraphGroups[j], SorT, align))
+				continue;
+
+			QVector<int> type;
+			if (!IsSmoothConnected(GraphGroups[i], GraphGroups[j], align, type))
+				continue;
+
+			SegmentGroupFromGraph newgroup = MergeGroups(GraphGroups[i], GraphGroups[j], type, align);
+			if (!IsExistedGroups(GraphGroups, newgroup))
+				GraphGroups.push_back(newgroup);
+		}
+	}
+
+	for (int i = 0; i < GraphGroups.size(); i++)
+	{
+		GraphGroups[i].joints.resize(GraphGroups[i].labels.size());
+		for (int j = 0; j < GraphGroups[i].labels.size(); j++)
+		{
+			if (GraphGroups[i].labels[j].size() < 2)
+				continue;
+			for (int k = 0; k < SegNum; k++)
+			{
+				if (SegmentJointIndex[k] == 1)
+					continue;
+				int add = 0;
+				for (int m = 0; m < GraphGroups[i].labels[j].size(); m++)
+					if (SegAdjacencyMatrix(GraphGroups[i].labels[j][m], k) == 1)
+					{
+						add++;
+					}
+				if (add > 1)
+					GraphGroups[i].joints[j].push_back(k);
+			}
+		}
+	}
+
+	if (SorT == 0)
+		SourceGraphGroups = GraphGroups;
+	else
+		TargetGraphGroups = GraphGroups;
+}
+
+bool CorrFinder::IsSmoothConnected(SegmentGroupFromGraph groupA, SegmentGroupFromGraph groupB, QVector<int> align, QVector<int> &type, double threshold)
+{
+	type.resize(groupA.labels.size());
+	for (int i = 0; i < groupA.labels.size(); i++)
+	{
+		int tmptype;
+		if (!IsSmoothConnected(groupA.SegmentAxis[i], groupB.SegmentAxis[align[i]], groupA.SegmentAxisDirection[i], groupB.SegmentAxisDirection[align[i]], tmptype, threshold))
+			return false;
+		type[i] = tmptype;
+	}
+	return true;
+}
+
 void CorrFinder::MergeSegToParts(int SorT)
 {
 	SurfaceMeshModel * proessShape;
@@ -849,6 +937,115 @@ bool CorrFinder::IsExistedGroups(QVector<SegmentGroup> groups, SegmentGroup test
 	return false;
 }
 
+bool CorrFinder::IsExistedGroups(QVector<SegmentGroupFromGraph> groups, SegmentGroupFromGraph test)
+{
+	for (int i = 0; i < groups.size(); i++)
+	{
+		if (groups[i].labels.size() != test.labels.size())
+			continue;
+		for (int j = 0; j < groups[i].labels.size(); j++)
+		{
+			for (int k = 0; k < groups[i].labels.size(); k++)
+			{
+				if (groups[i].labels[j].size() != test.labels[k].size())
+					continue;
+				if (QVectorisEqual(groups[i].labels[j], test.labels[k]))
+					return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool CorrFinder::IsAdjacented(SegmentGroupFromGraph groupA, SegmentGroupFromGraph groupB, int SorT, QVector<int> &align)
+{
+	Eigen::MatrixXd SegAdjacencyMatrix;
+
+	if (SorT == 0)
+	{
+		SegAdjacencyMatrix = SourceSegAdjacencyMatrix;
+	}
+	else
+	{
+		SegAdjacencyMatrix = TargetSegAdjacencyMatrix;
+	}
+
+	if (groupA.labels.size() != groupB.labels.size())
+		return false;
+
+	Eigen::MatrixXd CorrCandidates = Eigen::MatrixXd::Zero(groupA.labels.size(), groupA.labels.size());
+	for (int i = 0; i < groupA.labels.size(); i++)
+	{
+		for (int j = 0; j < groupB.labels.size(); j++)
+		{
+			int err = 0;
+			if (!IsAdjacented(groupA.labels[i], groupB.labels[j], SorT, err))
+			{
+				if (err == 1)
+					return false;
+				continue;
+			}
+			CorrCandidates(i, j) = 1;
+		}
+		if (CorrCandidates.row(i).sum() == 0)
+			return false;
+	}
+
+	QVector<int> test;
+	test.resize(groupA.labels.size());
+	QVector<QVector<int>> wholeset;
+	Permutation(groupA.labels.size(), test, wholeset, 0);
+
+	int flag = 0;
+	for (int k = 0; k < wholeset.size(); k++)
+	{
+		align = wholeset[k];
+		flag = 0;
+		for (int i = 0; i < groupA.labels.size(); i++)
+			if (CorrCandidates(i, align[i]) == 1)
+				flag++;
+		if (flag == groupA.labels.size())
+		{
+			break;
+		}
+	}
+
+	if (flag != groupA.labels.size())
+		return false;
+
+	return true;
+}
+
+bool CorrFinder::IsAdjacented(QVector<int> indexA, QVector<int> indexB, int SorT, int &err)
+{
+	Eigen::MatrixXd SegAdjacencyMatrix;
+
+	if (SorT == 0)
+	{
+		SegAdjacencyMatrix = SourceSegAdjacencyMatrix;
+	}
+	else
+	{
+		SegAdjacencyMatrix = TargetSegAdjacencyMatrix;
+	}
+
+	bool flag = false;
+	for (int i = 0; i < indexA.size(); i++)
+	{
+		for (int j = 0; j < indexB.size(); j++)
+		{
+			if (indexA[i] == indexB[j])
+			{
+				err = 1;
+				return false;
+			}
+			if (SegAdjacencyMatrix(indexA[i], indexB[j]) == 1)
+				flag = true;
+		}
+	}
+	return flag;
+}
+
 bool CorrFinder::IsAdjacented(SegmentGroup groupA, SegmentGroup groupB)
 {
 	Eigen::MatrixXd SegAdjacencyMatrix;
@@ -873,6 +1070,69 @@ bool CorrFinder::IsAdjacented(SegmentGroup groupA, SegmentGroup groupB)
 		}
 	}
 	return false;
+}
+
+SegmentGroupFromGraph CorrFinder::MergeGroups(SegmentGroupFromGraph groupA, SegmentGroupFromGraph groupB, QVector<int> type, QVector<int> align)
+{
+	SegmentGroupFromGraph newgroup;
+
+	newgroup.labels.resize(groupA.labels.size());
+	newgroup.SegmentAxis.resize(groupA.labels.size());
+	newgroup.SegmentAxisDirection.resize(groupA.labels.size());
+
+	for (int i = 0; i < groupA.labels.size(); i++)
+	{
+		newgroup.labels[i] = groupA.labels[i];
+		for (int j = 0; j < groupB.labels[align[i]].size(); j++)
+		{
+			newgroup.labels[i].push_back(groupB.labels[align[i]][j]);
+		}
+		switch (type[i])
+		{
+		case 0:
+			for each (Eigen::Vector3d v in groupA.SegmentAxis[i])
+				newgroup.SegmentAxis[i].push_back(v);
+			for each (Eigen::Vector3d v in groupB.SegmentAxis[align[i]])
+				newgroup.SegmentAxis[i].push_front(v);
+			for each (Eigen::Vector3d v in groupA.SegmentAxisDirection[i])
+				newgroup.SegmentAxisDirection[i].push_back(v);
+			for each (Eigen::Vector3d v in groupB.SegmentAxisDirection[align[i]])
+				newgroup.SegmentAxisDirection[i].push_front(v);
+			break;
+		case 1:
+			for each (Eigen::Vector3d v in groupB.SegmentAxis[align[i]])
+				newgroup.SegmentAxis[i].push_back(v);
+			for each (Eigen::Vector3d v in groupA.SegmentAxis[i])
+				newgroup.SegmentAxis[i].push_back(v);
+			for each (Eigen::Vector3d v in groupB.SegmentAxisDirection[align[i]])
+				newgroup.SegmentAxisDirection[i].push_back(v);
+			for each (Eigen::Vector3d v in groupA.SegmentAxisDirection[i])
+				newgroup.SegmentAxisDirection[i].push_back(v);
+			break;
+		case 2:
+			for each (Eigen::Vector3d v in groupA.SegmentAxis[i])
+				newgroup.SegmentAxis[i].push_back(v);
+			for each (Eigen::Vector3d v in groupB.SegmentAxis[align[i]])
+				newgroup.SegmentAxis[i].push_back(v);
+			for each (Eigen::Vector3d v in groupA.SegmentAxisDirection[i])
+				newgroup.SegmentAxisDirection[i].push_back(v);
+			for each (Eigen::Vector3d v in groupB.SegmentAxisDirection[align[i]])
+				newgroup.SegmentAxisDirection[i].push_back(v);
+			break;
+		case 3:
+			for each (Eigen::Vector3d v in groupA.SegmentAxis[i])
+				newgroup.SegmentAxis[i].push_back(v);
+			for (int k = groupB.SegmentAxis[align[i]].size() - 1; k > -1; k--)
+				newgroup.SegmentAxis[i].push_back(groupB.SegmentAxis[align[i]][k]);
+			for each (Eigen::Vector3d v in groupA.SegmentAxisDirection[i])
+				newgroup.SegmentAxisDirection[i].push_back(v);
+			for (int k = groupB.SegmentAxisDirection[align[i]].size() - 1; k > -1; k--)
+				newgroup.SegmentAxisDirection[i].push_back(groupB.SegmentAxisDirection[align[i]][k]);
+			break;
+		}
+	}
+
+	return newgroup;
 }
 
 SegmentGroup CorrFinder::MergeGroups(SegmentGroup groupA, SegmentGroup groupB, int type)
@@ -988,6 +1248,122 @@ SegmentGroup CorrFinder::MergeGroups(SegmentGroup groupA, SegmentGroup groupB, i
 	}
 
 	return newgroup;
+}
+
+bool CorrFinder::IsSmoothConnected(QVector<Eigen::Vector3d> PosA, QVector<Eigen::Vector3d> PosB, QVector<Eigen::Vector3d> DirA, QVector<Eigen::Vector3d> DirB, int &type, double threshold)
+{
+	double distance[4];
+	distance[0] = (PosA[0] - PosB[0]).norm();
+	distance[1] = (PosA[0] - PosB[PosB.size() - 1]).norm();
+	distance[2] = (PosA[PosA.size() - 1] - PosB[0]).norm();
+	distance[3] = (PosA[PosA.size() - 1] - PosB[PosB.size() - 1]).norm();
+
+	if (distance[0] <= distance[1] && distance[0] <= distance[2] && distance[0] <= distance[3])
+	{
+		type = 0;
+
+		for (int i = 0; i < PosB.size(); i++)
+		{
+			if (i == 0)
+				continue;
+			if ((PosA[0] - PosB[i]).norm() < distance[0])
+				return false;
+		}
+
+		for (int i = 0; i < PosA.size(); i++)
+		{
+			if (i == 0)
+				continue;
+			if ((PosA[i] - PosB[0]).norm() < distance[0])
+				return false;
+		}
+
+		Eigen::Vector3d d1 = DirA[0].normalized();
+		Eigen::Vector3d d2 = DirB[0].normalized();
+		double tmp = abs(d1.dot(d2));
+		if (abs(d1.dot(d2)) > threshold)
+			return true;
+	}
+	if (distance[1] <= distance[0] && distance[1] <= distance[2] && distance[1] <= distance[3])
+	{
+		type = 1;
+
+		for (int i = 0; i < PosB.size(); i++)
+		{
+			if (i == PosB.size() - 1)
+				continue;
+			if ((PosA[0] - PosB[i]).norm() < distance[1])
+				return false;
+		}
+
+		for (int i = 0; i < PosA.size(); i++)
+		{
+			if (i == 0)
+				continue;
+			if ((PosA[i] - PosB[PosB.size() - 1]).norm() < distance[1])
+				return false;
+		}
+
+		Eigen::Vector3d d1 = DirA[0].normalized();
+		Eigen::Vector3d d2 = DirB[PosB.size() - 1].normalized();
+		double tmp = abs(d1.dot(d2));
+		if (abs(d1.dot(d2)) > threshold)
+			return true;
+	}
+	if (distance[2] <= distance[0] && distance[2] <= distance[3] && distance[2] <= distance[1])
+	{
+		type = 2;
+
+		for (int i = 0; i < PosB.size(); i++)
+		{
+			if (i == 0)
+				continue;
+			if ((PosA[PosA.size() - 1] - PosB[i]).norm() < distance[2])
+				return false;
+		}
+
+		for (int i = 0; i < PosA.size(); i++)
+		{
+			if (i == PosA.size() - 1)
+				continue;
+			if ((PosA[i] - PosB[0]).norm() < distance[2])
+				return false;
+		}
+
+		Eigen::Vector3d d1 = DirA[PosA.size() - 1].normalized();
+		Eigen::Vector3d d2 = DirB[0].normalized();
+		double tmp = abs(d1.dot(d2));
+		if (abs(d1.dot(d2)) > threshold)
+			return true;
+	}
+	if (distance[3] <= distance[0] && distance[3] <= distance[2] && distance[3] <= distance[1])
+	{
+		type = 3;
+
+		for (int i = 0; i < PosB.size(); i++)
+		{
+			if (i == PosB.size() - 1)
+				continue;
+			if ((PosA[PosA.size() - 1] - PosB[i]).norm() < distance[3])
+				return false;
+		}
+
+		for (int i = 0; i < PosA.size(); i++)
+		{
+			if (i == PosA.size() - 1)
+				continue;
+			if ((PosA[i] - PosB[PosB.size() - 1]).norm() < distance[3])
+				return false;
+		}
+
+		Eigen::Vector3d d1 = DirA[PosA.size() - 1].normalized();
+		Eigen::Vector3d d2 = DirB[PosB.size() - 1].normalized();
+		double tmp = abs(d1.dot(d2));
+		if (abs(d1.dot(d2)) > threshold)
+			return true;
+	}
+
+	return false;
 }
 
 bool CorrFinder::IsSmoothConnected(SegmentGroup groupA, SegmentGroup groupB, int &type, double threshold)
@@ -1242,9 +1618,17 @@ void CorrFinder::GeneratePartSet()
 	GenerateSegMeshes(0);
 	GenerateSegMeshes(1);
 	FindSegAdjacencyMatrix();
+	GenerateGroupsFromGraph();
+	MergeGraphSegToParts(0);
+	MergeGraphSegToParts(1);
 
+//	MergeSegToParts(0);
+//	MergeSegToParts(1);
+}
 
-	SegGraph Graph;
+void CorrFinder::GenerateGroupsFromGraph()
+{
+	SegGraph GraphS;
 	int rnum = 0;
 	for (int i = 0; i < SourceShapeSegmentNum; i++)
 	{
@@ -1253,35 +1637,135 @@ void CorrFinder::GeneratePartSet()
 		SegGraphNode tmp;
 		tmp.labels.push_back(i);
 		tmp.lowest = SourceShapeSegment[i]->bbox().min()[2];
-		Graph.AddNode(tmp);
+		GraphS.AddNode(tmp);
 		rnum++;
 	}
 	SourceRealSegAdjacencyMatrix = SourceSegAdjacencyMatrix.block(0, 0, rnum, rnum);
-	Graph.AddAdjacencyMatrix(SourceRealSegAdjacencyMatrix);
-	Graph.BuildInitialGraph();
-	Graph.OutputInitialGraph();
+	GraphS.AddAdjacencyMatrix(SourceRealSegAdjacencyMatrix);
+	GraphS.BuildInitialGraph();
+	GraphS.GenerateGroups();
 
-//	MergeSegToParts(0);
-//	MergeSegToParts(1);
+	for (int i = 0; i < GraphS.groups.size(); i++)
+	{
+		SegmentGroupFromGraph tmp;
+		for (int j = 0; j < GraphS.groups[i].size(); j++)
+		{
+			QVector<int> tmplabel;
+			tmplabel.push_back(GraphS.groups[i][j]);
+			tmp.labels.push_back(tmplabel);
+			tmp.SegmentAxis.push_back(SourceShapeSegmentAxis[GraphS.groups[i][j]]);
+			tmp.SegmentAxisDirection.push_back(SourceShapeSegmentAxisDirection[GraphS.groups[i][j]]);
+		}
+		SourceGraphGroups.push_back(tmp);
+	}
+
+	SegGraph GraphT;
+	rnum = 0;
+	for (int i = 0; i < TargetShapeSegmentNum; i++)
+	{
+		if (TargetShapeSegmentJointIndex[i] == -1)
+			continue;
+		SegGraphNode tmp;
+		tmp.labels.push_back(i);
+		tmp.lowest = TargetShapeSegment[i]->bbox().min()[2];
+		GraphT.AddNode(tmp);
+		rnum++;
+	}
+	TargetRealSegAdjacencyMatrix = TargetSegAdjacencyMatrix.block(0, 0, rnum, rnum);
+	GraphT.AddAdjacencyMatrix(TargetRealSegAdjacencyMatrix);
+	GraphT.BuildInitialGraph();
+	GraphT.GenerateGroups();
+
+	for (int i = 0; i < GraphT.groups.size(); i++)
+	{
+		SegmentGroupFromGraph tmp;
+		for (int j = 0; j < GraphT.groups[i].size(); j++)
+		{
+			QVector<int> tmplabel;
+			tmplabel.push_back(GraphT.groups[i][j]);
+			tmp.labels.push_back(tmplabel);
+			tmp.SegmentAxis.push_back(TargetShapeSegmentAxis[GraphT.groups[i][j]]);
+			tmp.SegmentAxisDirection.push_back(TargetShapeSegmentAxisDirection[GraphT.groups[i][j]]);
+		}
+		TargetGraphGroups.push_back(tmp);
+	}
+
+/*	QVector<QPair<int, int>> Invaild;
+	int candidatsNum = SourceGraphGroups.size();
+	for (int i = 0; i < SourceGraphGroups.size(); i++)
+	{
+		if (i > candidatsNum)
+			candidatsNum = SourceGraphGroups.size();
+		for (int j = 0; j < candidatsNum; j++)
+		{
+			if (i == j || Invaild.contains(QPair<int, int>(i, j)) || SourceGraphGroups[i].labels.size() != SourceGraphGroups[j].labels.size())
+				continue;
+			bool flag = false;
+			QVector<QVector<int>> Adjacent;
+			Adjacent.resize(SourceGraphGroups[i].labels.size());
+			int countM = 0, countN = 0;
+			for (int m = 0; m < SourceGraphGroups[i].labels.size(); m++)
+			{
+				bool tmpflag = false;
+				for (int n = 0; n < SourceGraphGroups[j].labels.size(); n++)
+				{
+					if (!IsAdjacented(SourceGraphGroups[i].labels[m], SourceGraphGroups[j].labels[n], 0))
+					{
+						flag = true;
+						m = SourceGraphGroups[i].labels.size();
+						break;
+					}
+					Adjacent[m].push_back(n);
+					tmpflag = true;
+				}
+				if (tmpflag)
+					countM++;
+			}
+			if (flag)
+				continue;
+			for (int m = 0; m < SourceGraphGroups[j].labels.size(); m++)
+			{
+				bool tmpflag = false;
+				for (int n = 0; n < SourceGraphGroups[i].labels.size(); n++)
+				{
+					if (!IsAdjacented(SourceGraphGroups[j].labels[m], SourceGraphGroups[i].labels[n], 0))
+					{
+						flag = true;
+						m = SourceGraphGroups[j].labels.size();
+						break;
+					}
+					tmpflag = true;
+				}
+				if (tmpflag)
+					countN++;
+			}
+			if (flag || countM + countN != 2 * SourceGraphGroups[j].labels.size())
+				continue;
+
+			SegmentGroupFromGraph tmp; //Bugs here
+
+
+		}
+	}*/
 }
 
 void CorrFinder::DrawSpecificPart(int index, int SorT)
 {
 	SurfaceMeshModel * proessShape;
 	QVector<QVector<int>> SegmentIndex;
-	QVector<SegmentGroup> SegGroups;
+	QVector<SegmentGroupFromGraph> SegGroups;
 
 	if (SorT == 0)
 	{
 		proessShape = SourceShape;
 		SegmentIndex = SourceShapeSegmentIndex;
-		SegGroups = SourceSegGroups;
+		SegGroups = SourceGraphGroups;
 	}
 	else
 	{
 		proessShape = TargetShape;
 		SegmentIndex = TargetShapeSegmentIndex;
-		SegGroups = TargetSegGroups;
+		SegGroups = TargetGraphGroups;
 	}
 	Surface_mesh::Face_property<QColor> fcolors = proessShape->face_property<QColor>("f:partcolor");
 
@@ -1292,9 +1776,36 @@ void CorrFinder::DrawSpecificPart(int index, int SorT)
 		fcolors[fit] = QColor(255, 255, 255);
 		for (int i = 0; i < SegGroups[index].labels.size(); i++)
 		{
-			if (SegmentIndex[SegGroups[index].labels[i]][findex] == 1)
+			bool flag = false;
+			for (int j = 0; j < SegGroups[index].labels[i].size(); j++)
 			{
-				fcolors[fit] = QColor(255, 0, 0);
+				if (SegmentIndex[SegGroups[index].labels[i][j]][findex] == 1)
+				{
+					fcolors[fit] = QColor(255, 0, 0);
+					flag = true;
+					break;
+				}
+			}
+
+			if (flag)
+			{
+				i = SegGroups[index].labels.size();
+				break;
+			}
+
+			for (int j = 0; j < SegGroups[index].joints[i].size(); j++)
+			{
+				if (SegmentIndex[SegGroups[index].joints[i][j]][findex] == 1)
+				{
+					fcolors[fit] = QColor(255, 0, 0);
+					flag = true;
+					break;
+				}
+			}
+
+			if (flag)
+			{
+				i = SegGroups[index].labels.size();
 				break;
 			}
 		}

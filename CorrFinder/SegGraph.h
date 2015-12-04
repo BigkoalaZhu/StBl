@@ -28,8 +28,10 @@ public:
 	void AddNode(SegGraphNode node);
 	void AddAdjacencyMatrix(Eigen::MatrixXd m){ AdjacencyMatrix = m; }
 	void BuildInitialGraph();
+	void GenerateGroups();
 	void OutputInitialGraph();
 
+	QVector<QVector<int>> groups;
 private:
 	Eigen::MatrixXd AdjacencyMatrix;
 	QVector<SegGraphNode> Nodes;

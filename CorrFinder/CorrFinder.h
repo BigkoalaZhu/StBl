@@ -16,6 +16,13 @@ struct SegmentGroup {
 	int SorT;
 };
 
+struct SegmentGroupFromGraph {
+	QVector<QVector<Eigen::Vector3d>> SegmentAxisDirection;
+	QVector<QVector<Eigen::Vector3d>> SegmentAxis;
+	QVector<QVector<int>> labels;
+	QVector<QVector<int>> joints;
+};
+
 class CorrFinder
 {
 public:
@@ -29,6 +36,9 @@ public:
 
 	SurfaceMeshModel * getSourceShape(){ return SourceShape; }
 	SurfaceMeshModel * getTargetShape(){ return TargetShape; }
+
+	QVector<SegmentGroupFromGraph> SourceGraphGroups;
+	QVector<SegmentGroupFromGraph> TargetGraphGroups;
 
 	QVector<SegmentGroup> SourceSegGroups;
 	QVector<SegmentGroup> TargetSegGroups;
@@ -49,6 +59,15 @@ private:
 	void MergeStraightConnectedCylinders(int SorT); // Seems useless
 	bool IsFlatMerge(int indexA, int indexB, int SorT);
 
+	void GenerateGroupsFromGraph();
+	bool IsSmoothConnected(QVector<Eigen::Vector3d> PosA, QVector<Eigen::Vector3d> PosB, QVector<Eigen::Vector3d> DirA, QVector<Eigen::Vector3d> DirB, int &type, double threshold = 0.8);
+	bool IsSmoothConnected(SegmentGroupFromGraph groupA, SegmentGroupFromGraph groupB, QVector<int> align, QVector<int> &type, double threshold = 0.0);
+	bool IsAdjacented(SegmentGroupFromGraph groupA, SegmentGroupFromGraph groupB, int SorT, QVector<int> &align);
+	SegmentGroupFromGraph MergeGroups(SegmentGroupFromGraph groupA, SegmentGroupFromGraph groupB, QVector<int> type, QVector<int> align);
+	void MergeGraphSegToParts(int SorT);
+	bool IsExistedGroups(QVector<SegmentGroupFromGraph> groups, SegmentGroupFromGraph test);
+	bool IsAdjacented(QVector<int> indexA, QVector<int> indexB, int SorT, int &err);
+
 	SurfaceMeshModel * mergedSeg(QVector<int> indexes, int SorT);
 	bool IsFlatMerge(SegmentGroup groupA, SegmentGroup groupB);
 	bool IsSmoothConnected(SegmentGroup groupA, SegmentGroup groupB, int &type, double threshold = 0.8);
@@ -56,6 +75,7 @@ private:
 	bool IsExistedGroups(QVector<SegmentGroup> groups, SegmentGroup test);
 	void MergeSegToParts(int SorT);
 	SegmentGroup MergeGroups(SegmentGroup groupA, SegmentGroup groupB, int type);
+	
 	///////////////////////////////  Variants
 	QVector< QColor > ColorMap;
 

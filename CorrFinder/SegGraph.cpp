@@ -83,6 +83,16 @@ void SegGraph::BuildInitialGraph()
 					Nodes[i].outNum++;
 					Nodes[j].inNum++;
 					Edges.push_back(tmp);
+					if (abs(Nodes[i].lowest - Nodes[j].lowest) < 0.01 && level == Nodes[j].level)
+					{
+						SegGraphEdge tmp_v;
+						tmp_v.from = Nodes[j];
+						tmp_v.to = Nodes[i];
+						Nodes[j].outNum++;
+						Nodes[i].inNum++;
+						Edges.push_back(tmp_v);
+					}
+					
 					visited.push_back(QPair<int, int>(i, j));
 					visited.push_back(QPair<int, int>(j, i));
 					if (level > Nodes[j].level)
@@ -94,11 +104,47 @@ void SegGraph::BuildInitialGraph()
 	}
 }
 
+void SegGraph::GenerateGroups()
+{
+	QVector<int> visited;
+	for (int i = 0; i < Nodes.size(); i++)
+	{
+		if (visited.contains(i))
+			continue;
+		QVector<int> tmpgroup;
+		tmpgroup.push_back(Nodes[i].labels[0]);
+		visited.push_back(i);
+		for (int j = i + 1; j < Nodes.size(); j++)
+		{
+			if (visited.contains(j))
+				continue;
+			if (Nodes[j].level == Nodes[i].level && Nodes[j].inNum == Nodes[i].inNum && Nodes[j].outNum == Nodes[i].outNum)
+			{
+				tmpgroup.push_back(Nodes[j].labels[0]);
+				visited.push_back(j);
+			}
+		}
+		groups.push_back(tmpgroup);
+	}
+}
+
 void SegGraph::OutputInitialGraph()
 {
 	QFile file("graph.txt");
 	file.open(QIODevice::ReadWrite | QIODevice::Text);
 	QTextStream input(&file);
+
+	for (int i = 0; i < groups.size(); i++)
+	{
+		for (int j = 0; j < groups[i].size(); j++)
+		{
+			input << groups[i][j] << " ";
+		}
+		input << "\n";
+	}
+
+	input << "\n";
+
 	for (int i = 0; i < Nodes.size(); i++)
 	{
 		input<< Nodes[i].labels[0] << " " << Nodes[i].level << " " << Nodes[i].inNum << " " << Nodes[i].outNum << "\n";
