@@ -9,6 +9,13 @@
 CorrFinder::CorrFinder()
 {
 	ColorMap = makeColorMapJet();
+	ColorDifferent.resize(6);
+	ColorDifferent[0] = Qt::GlobalColor::red;
+	ColorDifferent[1] = Qt::GlobalColor::green;
+	ColorDifferent[2] = Qt::GlobalColor::blue;
+	ColorDifferent[3] = Qt::GlobalColor::yellow;
+	ColorDifferent[4] = Qt::GlobalColor::cyan;
+	ColorDifferent[5] = Qt::GlobalColor::magenta;
 }
 
 
@@ -1781,7 +1788,7 @@ void CorrFinder::DrawSpecificPart(int index, int SorT)
 			{
 				if (SegmentIndex[SegGroups[index].labels[i][j]][findex] == 1)
 				{
-					fcolors[fit] = QColor(255, 0, 0);
+					fcolors[fit] = ColorDifferent[i % 6];
 					flag = true;
 					break;
 				}
@@ -1797,7 +1804,7 @@ void CorrFinder::DrawSpecificPart(int index, int SorT)
 			{
 				if (SegmentIndex[SegGroups[index].joints[i][j]][findex] == 1)
 				{
-					fcolors[fit] = QColor(255, 0, 0);
+					fcolors[fit] = ColorDifferent[i % 6];
 					flag = true;
 					break;
 				}

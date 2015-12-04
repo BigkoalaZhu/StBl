@@ -77,6 +77,7 @@ private:
 	SegmentGroup MergeGroups(SegmentGroup groupA, SegmentGroup groupB, int type);
 	
 	///////////////////////////////  Variants
+	QVector< QColor > ColorDifferent;
 	QVector< QColor > ColorMap;
 
 	QString pairfile_path;
