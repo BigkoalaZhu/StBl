@@ -386,7 +386,7 @@ void CorrFinder::GenerateSegMeshes(int SorT)
 		TargetShapeSegment = SegmentMeshes;
 }
 
-void CorrFinder::FlatSegMerge(double threshold, int SorT)
+void CorrFinder::FlatSegMerge(double threshold, int SorT, QVector<int> &flat)
 {
 	SurfaceMeshModel * proessShape;
 	int SegNum;
@@ -516,6 +516,7 @@ void CorrFinder::FlatSegMerge(double threshold, int SorT)
 		}
 	}
 
+	flat = SegFlat;
 	ApplySegmentColor();
 }
 
@@ -755,6 +756,23 @@ SurfaceMeshModel * CorrFinder::mergedSeg(QVector<int> indexes, int SorT)
 	return piece;
 }
 
+bool CorrFinder::IsFlat(SegmentGroupFromGraph group, int SorT)
+{
+	for (int i = 0; i < group.labels.size(); i++)
+	{
+		for (int j = 0; j < group.labels[i].size(); j++)
+		{
+			if (SorT == 0)
+				if (SourceShapeSegmentFlatIndex[group.labels[i][j]] == 1)
+					return true;
+			if (SorT == 1)
+				if (TargetShapeSegmentFlatIndex[group.labels[i][j]] == 1)
+					return true;
+		}
+	}
+	return false;
+}
+
 void CorrFinder::MergeGraphSegToParts(int SorT)
 {
 	QVector<SegmentGroupFromGraph> GraphGroups;
@@ -782,9 +800,14 @@ void CorrFinder::MergeGraphSegToParts(int SorT)
 	{
 		if (i > candidatesNum)
 			candidatesNum = GraphGroups.size();
+		if (IsFlat(GraphGroups[i], SorT))
+			continue;
 		for (int j = 0; j < candidatesNum; j++)
 		{
 			if (i == j)
+				continue;
+
+			if (IsFlat(GraphGroups[j], SorT))
 				continue;
 
 			QVector<int> align;
@@ -1619,8 +1642,8 @@ void CorrFinder::MergeStraightConnectedCylinders(int SorT)
 void CorrFinder::GeneratePartSet()
 {
 	FindSegAdjacencyMatrix();
-	FlatSegMerge(2.5, 0);
-	FlatSegMerge(2.5, 1);
+	FlatSegMerge(2.5, 0, SourceShapeSegmentFlatIndex);
+	FlatSegMerge(2.5, 1, TargetShapeSegmentFlatIndex);
 	GetSegFaceNum();
 	GenerateSegMeshes(0);
 	GenerateSegMeshes(1);

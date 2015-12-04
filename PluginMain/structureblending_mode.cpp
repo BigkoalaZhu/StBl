@@ -159,6 +159,7 @@ void structureblending_mode::GeneratePartSet()
 
 	widget->ui->SourcrPartSet->setModel(SourceModel);
 	widget->ui->TargetPartSet->setModel(TargetModel);
+	drawArea()->updateGL();
 }
 
 void structureblending_mode::HasPartChange(int check)

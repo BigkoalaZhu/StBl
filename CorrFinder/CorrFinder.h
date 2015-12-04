@@ -51,7 +51,7 @@ private:
 	void ApplySeg(int SorT);
 
 	void FindSegAdjacencyMatrix();
-	void FlatSegMerge(double threshold, int SorT);
+	void FlatSegMerge(double threshold, int SorT, QVector<int> &flat);
 	void MergeTwoSegs(int A, int B, int SorT);
 	void GenerateSegMeshes(int SorT);
 	void GetSegFaceNum();
@@ -67,6 +67,7 @@ private:
 	void MergeGraphSegToParts(int SorT);
 	bool IsExistedGroups(QVector<SegmentGroupFromGraph> groups, SegmentGroupFromGraph test);
 	bool IsAdjacented(QVector<int> indexA, QVector<int> indexB, int SorT, int &err);
+	bool IsFlat(SegmentGroupFromGraph group, int SorT);
 
 	SurfaceMeshModel * mergedSeg(QVector<int> indexes, int SorT);
 	bool IsFlatMerge(SegmentGroup groupA, SegmentGroup groupB);
@@ -98,6 +99,10 @@ private:
 	
 	QVector<int> SourceShapeSegmentJointIndex; //yes:1, no:-1
 	QVector<int> TargetShapeSegmentJointIndex;
+
+	QVector<int> SourceShapeSegmentFlatIndex;
+	QVector<int> TargetShapeSegmentFlatIndex;
+
 	QVector<QVector<Eigen::Vector3d>> SourceShapeSegmentAxis;
 	QVector<QVector<Eigen::Vector3d>> SourceShapeSegmentAxisDirection;
 	QVector<QVector<Eigen::Vector3d>> TargetShapeSegmentAxis;
