@@ -232,6 +232,22 @@ static inline std::vector< SurfaceMesh::SurfaceMeshModel* > connectedPieces(Surf
 	return pieces;
 }
 
+static inline QVector<int> RandomVector(int n)
+{
+	QVector<int> tmp;
+	tmp.resize(n);
+	tmp.fill(-1);
+	srand((unsigned)time(NULL));
+	for (int i = 0; i < n; i++)
+	{
+		int index = rand() % n;
+		while (tmp[index] != -1)
+			index = rand() % n;
+		tmp[index] = i;
+	}
+	return tmp;
+}
+
 static inline void SplitListShapes(QString ListName)
 {
 	////////////////////////////
@@ -370,6 +386,26 @@ static inline bool QVectorisEqual(QVector<int> A, QVector<int> B)
 		return false;
 
 	return true;
+}
+
+static inline void Permutation(int n, QVector<int> A, QVector<QVector<int>> &set, int cur)
+{
+	if (cur == n)
+	{
+		set.push_back(A);
+	}
+	else
+		for (int i = 0; i < n; ++i)
+		{
+			int ok = 1;
+			for (int j = 0; j < cur; ++j)
+				if (i == A[j]) ok = 0;
+			if (ok)
+			{
+				A[cur] = i;
+				Permutation(n, A, set, cur + 1);
+			}
+		}
 }
   
 static inline bool copyDirectoryFiles(const QString &fromDir, const QString &toDir, bool coverFileIfExist)

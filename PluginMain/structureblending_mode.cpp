@@ -139,13 +139,13 @@ void structureblending_mode::GeneratePartSet()
 {
 	corrfinder->GeneratePartSet();
 	QStringList SourcePartList, TargetPartList;
-	for (int i = 0; i < corrfinder->SourceSegGroups.size(); i++)
+	for (int i = 0; i < corrfinder->SourceGraphGroups.size(); i++)
 	{
 		QString tmp = QString::number(i);
 		SourcePartList += tmp;
 	}
 
-	for (int i = 0; i < corrfinder->SourceSegGroups.size(); i++)
+	for (int i = 0; i < corrfinder->TargetGraphGroups.size(); i++)
 	{
 		QString tmp = QString::number(i);
 		TargetPartList += tmp;

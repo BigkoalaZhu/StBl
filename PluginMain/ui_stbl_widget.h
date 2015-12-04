@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'stbl_widget.ui'
 **
-** Created by: Qt User Interface Compiler version 5.5.1
+** Created by: Qt User Interface Compiler version 5.4.1
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -53,16 +53,17 @@ public:
     QPushButton *LoadAList;
     QWidget *Corr;
     QGridLayout *gridLayout;
-    QPushButton *FindInbet;
-    QPushButton *LoadInbet;
-    QFrame *line;
-    QPushButton *GenPartSet;
-    QListView *SourcrPartSet;
-    QPushButton *FindCorr;
     QListView *TargetPartSet;
+    QPushButton *LoadInbet;
+    QCheckBox *HasInbetInfo;
+    QPushButton *GenPartSet;
     QCheckBox *HasPartInfo;
     QPushButton *LoadPair;
-    QCheckBox *HasInbetInfo;
+    QPushButton *FindInbet;
+    QListView *SourcrPartSet;
+    QPushButton *FindCorr;
+    QFrame *line;
+    QListView *CorrSet;
 
     void setupUi(QWidget *stbl_widget)
     {
@@ -155,42 +156,25 @@ public:
         Corr->setObjectName(QStringLiteral("Corr"));
         gridLayout = new QGridLayout(Corr);
         gridLayout->setObjectName(QStringLiteral("gridLayout"));
-        FindInbet = new QPushButton(Corr);
-        FindInbet->setObjectName(QStringLiteral("FindInbet"));
+        TargetPartSet = new QListView(Corr);
+        TargetPartSet->setObjectName(QStringLiteral("TargetPartSet"));
 
-        gridLayout->addWidget(FindInbet, 3, 0, 1, 2);
+        gridLayout->addWidget(TargetPartSet, 8, 1, 1, 1);
 
         LoadInbet = new QPushButton(Corr);
         LoadInbet->setObjectName(QStringLiteral("LoadInbet"));
 
         gridLayout->addWidget(LoadInbet, 5, 0, 1, 2);
 
-        line = new QFrame(Corr);
-        line->setObjectName(QStringLiteral("line"));
-        line->setFrameShape(QFrame::HLine);
-        line->setFrameShadow(QFrame::Sunken);
+        HasInbetInfo = new QCheckBox(Corr);
+        HasInbetInfo->setObjectName(QStringLiteral("HasInbetInfo"));
 
-        gridLayout->addWidget(line, 6, 0, 1, 2);
+        gridLayout->addWidget(HasInbetInfo, 0, 1, 1, 1);
 
         GenPartSet = new QPushButton(Corr);
         GenPartSet->setObjectName(QStringLiteral("GenPartSet"));
 
         gridLayout->addWidget(GenPartSet, 7, 0, 1, 2);
-
-        SourcrPartSet = new QListView(Corr);
-        SourcrPartSet->setObjectName(QStringLiteral("SourcrPartSet"));
-
-        gridLayout->addWidget(SourcrPartSet, 8, 0, 1, 1);
-
-        FindCorr = new QPushButton(Corr);
-        FindCorr->setObjectName(QStringLiteral("FindCorr"));
-
-        gridLayout->addWidget(FindCorr, 9, 0, 1, 2);
-
-        TargetPartSet = new QListView(Corr);
-        TargetPartSet->setObjectName(QStringLiteral("TargetPartSet"));
-
-        gridLayout->addWidget(TargetPartSet, 8, 1, 1, 1);
 
         HasPartInfo = new QCheckBox(Corr);
         HasPartInfo->setObjectName(QStringLiteral("HasPartInfo"));
@@ -202,10 +186,32 @@ public:
 
         gridLayout->addWidget(LoadPair, 2, 0, 1, 2);
 
-        HasInbetInfo = new QCheckBox(Corr);
-        HasInbetInfo->setObjectName(QStringLiteral("HasInbetInfo"));
+        FindInbet = new QPushButton(Corr);
+        FindInbet->setObjectName(QStringLiteral("FindInbet"));
 
-        gridLayout->addWidget(HasInbetInfo, 0, 1, 1, 1);
+        gridLayout->addWidget(FindInbet, 3, 0, 1, 2);
+
+        SourcrPartSet = new QListView(Corr);
+        SourcrPartSet->setObjectName(QStringLiteral("SourcrPartSet"));
+
+        gridLayout->addWidget(SourcrPartSet, 8, 0, 1, 1);
+
+        FindCorr = new QPushButton(Corr);
+        FindCorr->setObjectName(QStringLiteral("FindCorr"));
+
+        gridLayout->addWidget(FindCorr, 9, 0, 1, 2);
+
+        line = new QFrame(Corr);
+        line->setObjectName(QStringLiteral("line"));
+        line->setFrameShape(QFrame::HLine);
+        line->setFrameShadow(QFrame::Sunken);
+
+        gridLayout->addWidget(line, 6, 0, 1, 2);
+
+        CorrSet = new QListView(Corr);
+        CorrSet->setObjectName(QStringLiteral("CorrSet"));
+
+        gridLayout->addWidget(CorrSet, 10, 0, 1, 2);
 
         tabWidget->addTab(Corr, QString());
 
@@ -236,13 +242,13 @@ public:
         label_2->setText(QApplication::translate("stbl_widget", "Camera File Path: ", 0));
         LoadAList->setText(QApplication::translate("stbl_widget", "Batch processing", 0));
         tabWidget->setTabText(tabWidget->indexOf(Project), QApplication::translate("stbl_widget", "Project Image", 0));
-        FindInbet->setText(QApplication::translate("stbl_widget", "Find inbetween templates", 0));
         LoadInbet->setText(QApplication::translate("stbl_widget", "Load inbetween templates", 0));
+        HasInbetInfo->setText(QApplication::translate("stbl_widget", "Has Inbetween Information", 0));
         GenPartSet->setText(QApplication::translate("stbl_widget", "Generate candidates part set", 0));
-        FindCorr->setText(QApplication::translate("stbl_widget", "Find Correspondence", 0));
         HasPartInfo->setText(QApplication::translate("stbl_widget", "Has Part Information", 0));
         LoadPair->setText(QApplication::translate("stbl_widget", "Load shape pair", 0));
-        HasInbetInfo->setText(QApplication::translate("stbl_widget", "Has Inbetween Information", 0));
+        FindInbet->setText(QApplication::translate("stbl_widget", "Find inbetween templates", 0));
+        FindCorr->setText(QApplication::translate("stbl_widget", "Find Correspondence", 0));
         tabWidget->setTabText(tabWidget->indexOf(Corr), QApplication::translate("stbl_widget", "Correspondence", 0));
     } // retranslateUi
 

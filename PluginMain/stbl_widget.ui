@@ -130,12 +130,8 @@
        <string>Correspondence</string>
       </attribute>
       <layout class="QGridLayout" name="gridLayout">
-       <item row="3" column="0" colspan="2">
-        <widget class="QPushButton" name="FindInbet">
-         <property name="text">
-          <string>Find inbetween templates</string>
-         </property>
-        </widget>
+       <item row="8" column="1">
+        <widget class="QListView" name="TargetPartSet"/>
        </item>
        <item row="5" column="0" colspan="2">
         <widget class="QPushButton" name="LoadInbet">
@@ -144,10 +140,10 @@
          </property>
         </widget>
        </item>
-       <item row="6" column="0" colspan="2">
-        <widget class="Line" name="line">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
+       <item row="0" column="1">
+        <widget class="QCheckBox" name="HasInbetInfo">
+         <property name="text">
+          <string>Has Inbetween Information</string>
          </property>
         </widget>
        </item>
@@ -157,19 +153,6 @@
           <string>Generate candidates part set</string>
          </property>
         </widget>
-       </item>
-       <item row="8" column="0">
-        <widget class="QListView" name="SourcrPartSet"/>
-       </item>
-       <item row="9" column="0" colspan="2">
-        <widget class="QPushButton" name="FindCorr">
-         <property name="text">
-          <string>Find Correspondence</string>
-         </property>
-        </widget>
-       </item>
-       <item row="8" column="1">
-        <widget class="QListView" name="TargetPartSet"/>
        </item>
        <item row="0" column="0">
         <widget class="QCheckBox" name="HasPartInfo">
@@ -185,12 +168,32 @@
          </property>
         </widget>
        </item>
-       <item row="0" column="1">
-        <widget class="QCheckBox" name="HasInbetInfo">
+       <item row="3" column="0" colspan="2">
+        <widget class="QPushButton" name="FindInbet">
          <property name="text">
-          <string>Has Inbetween Information</string>
+          <string>Find inbetween templates</string>
          </property>
         </widget>
+       </item>
+       <item row="8" column="0">
+        <widget class="QListView" name="SourcrPartSet"/>
+       </item>
+       <item row="9" column="0" colspan="2">
+        <widget class="QPushButton" name="FindCorr">
+         <property name="text">
+          <string>Find Correspondence</string>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="0" colspan="2">
+        <widget class="Line" name="line">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item row="10" column="0" colspan="2">
+        <widget class="QListView" name="CorrSet"/>
        </item>
       </layout>
      </widget>
