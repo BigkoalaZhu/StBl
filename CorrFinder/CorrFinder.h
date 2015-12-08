@@ -50,14 +50,14 @@ private:
 	void ApplyPartColor(int sindex = -1);
 	void ApplySeg(int SorT);
 
-	void FindSegAdjacencyMatrix();
+	void FindSegAdjacencyMatrix(int ignoreJoint = 0);
 	void FlatSegMerge(double threshold, int SorT, QVector<int> &flat);
 	void MergeTwoSegs(int A, int B, int SorT);
 	void GenerateSegMeshes(int SorT);
 	void GetSegFaceNum();
 	void GenerateInitialGroups(double t);
 	void MergeStraightConnectedCylinders(int SorT); // Seems useless
-	bool IsFlatMerge(int indexA, int indexB, int SorT);
+	bool IsFlatMerge(int indexA, int indexB, int SorT, double threshold);
 
 	void GenerateGroupsFromGraph();
 	bool IsSmoothConnected(QVector<Eigen::Vector3d> PosA, QVector<Eigen::Vector3d> PosB, QVector<Eigen::Vector3d> DirA, QVector<Eigen::Vector3d> DirB, int &type, double threshold = 0.8);
@@ -69,6 +69,8 @@ private:
 	bool IsAdjacented(QVector<int> indexA, QVector<int> indexB, int SorT, int &err);
 	bool IsFlat(SegmentGroupFromGraph group, int SorT);
 
+	void filterJoints(int SorT);
+
 	SurfaceMeshModel * mergedSeg(QVector<int> indexes, int SorT);
 	bool IsFlatMerge(SegmentGroup groupA, SegmentGroup groupB);
 	bool IsSmoothConnected(SegmentGroup groupA, SegmentGroup groupB, int &type, double threshold = 0.8);
@@ -78,6 +80,7 @@ private:
 	SegmentGroup MergeGroups(SegmentGroup groupA, SegmentGroup groupB, int type);
 	
 	///////////////////////////////  Variants
+	double threshouldGC;
 	QVector< QColor > ColorDifferent;
 	QVector< QColor > ColorMap;
 
@@ -99,6 +102,9 @@ private:
 	
 	QVector<int> SourceShapeSegmentJointIndex; //yes:1, no:-1
 	QVector<int> TargetShapeSegmentJointIndex;
+
+	QVector<double> SourceShapeSegmentGC;
+	QVector<double> TargetShapeSegmentGC;
 
 	QVector<int> SourceShapeSegmentFlatIndex;
 	QVector<int> TargetShapeSegmentFlatIndex;

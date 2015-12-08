@@ -1,5 +1,6 @@
 #include "SegGraph.h"
 #include <iostream>
+#include "UtilityGlobal.h"
 
 
 SegGraph::SegGraph()
@@ -83,7 +84,7 @@ void SegGraph::BuildInitialGraph()
 					Nodes[i].outNum++;
 					Nodes[j].inNum++;
 					Edges.push_back(tmp);
-					if (abs(Nodes[i].lowest - Nodes[j].lowest) < 0.01 && level == Nodes[j].level)
+					if (level == Nodes[j].level)
 					{
 						SegGraphEdge tmp_v;
 						tmp_v.from = Nodes[j];
@@ -120,12 +121,34 @@ void SegGraph::GenerateGroups()
 				continue;
 			if (Nodes[j].level == Nodes[i].level && Nodes[j].inNum == Nodes[i].inNum && Nodes[j].outNum == Nodes[i].outNum)
 			{
-				tmpgroup.push_back(Nodes[j].labels[0]);
-				visited.push_back(j);
+				if (featureMatch(Nodes[i].feature, Nodes[j].feature))
+				{
+					tmpgroup.push_back(Nodes[j].labels[0]);
+					visited.push_back(j);
+				}
 			}
 		}
 		groups.push_back(tmpgroup);
 	}
+}
+
+bool SegGraph::featureMatch(Eigen::Vector3d f1, Eigen::Vector3d f2)
+{
+	QVector<QVector<int>> indexes;
+	QVector<int> indextmp;
+	indextmp.resize(3);
+	Permutation(3, indextmp, indexes, 0);
+	double minN = 99999;
+	for (int i = 0; i < indexes.size(); i++)
+	{
+		Eigen::Vector3d tmp(f1[indexes[i][0]], f1[indexes[i][1]], f1[indexes[i][2]]);
+		if ((tmp - f2).norm() < minN)
+			minN = (tmp - f2).norm();
+	}
+	if (minN / std::min(f1.norm(), f2.norm()) < 1)
+		return true;
+	else
+		return false;
 }
 
 void SegGraph::OutputInitialGraph()

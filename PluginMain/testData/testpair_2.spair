@@ -1,0 +1,4 @@
+Source ChairA_fixed.obj
+Target ChairFilm_fixed.obj
+SourceSegments ChairA_fixed_allGC_491U.lgcdata
+TargetSegments ChairFilm_fixed_allGC_447U.lgcdata

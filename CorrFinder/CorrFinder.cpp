@@ -16,6 +16,7 @@ CorrFinder::CorrFinder()
 	ColorDifferent[3] = Qt::GlobalColor::yellow;
 	ColorDifferent[4] = Qt::GlobalColor::cyan;
 	ColorDifferent[5] = Qt::GlobalColor::magenta;
+	threshouldGC = 4.0;
 }
 
 
@@ -126,8 +127,50 @@ bool CorrFinder::LoadPairFile(QString filepath, bool hasPart, bool hasInbetween)
 	if (!LoadParialPartFile())
 		return false;
 
+	FindSegAdjacencyMatrix(1);
+
+	filterJoints(0);
+	filterJoints(1);
+
 	ApplySegmentColor();
 	return true;
+}
+
+void CorrFinder::filterJoints(int SorT)
+{
+	int SegNum;
+	QVector<int> SegmentJointIndex;
+	QVector<double> SegmentJointGC;
+	Eigen::MatrixXd SegAdjacencyMatrix;
+
+	if (SorT == 0)
+	{
+		SegNum = SourceShapeSegmentNum;
+		SegmentJointIndex = SourceShapeSegmentJointIndex;
+		SegmentJointGC = SourceShapeSegmentGC;
+		SegAdjacencyMatrix = SourceSegAdjacencyMatrix;
+	}
+	else
+	{
+		SegNum = TargetShapeSegmentNum;
+		SegmentJointIndex = TargetShapeSegmentJointIndex;
+		SegmentJointGC = TargetShapeSegmentGC;
+		SegAdjacencyMatrix = TargetSegAdjacencyMatrix;
+	}
+
+	for (int i = 0; i < SegNum; i++)
+		if (SegmentJointGC[i] > threshouldGC && SegAdjacencyMatrix.row(i).sum() > 3)
+			SegmentJointIndex[i] = -1;
+
+	if (SorT == 0)
+	{
+		SourceShapeSegmentJointIndex = SegmentJointIndex;
+	}
+	else
+	{
+		TargetShapeSegmentJointIndex = SegmentJointIndex;
+	}
+
 }
 
 void CorrFinder::ApplySegmentColor(int sindex)
@@ -198,7 +241,7 @@ void CorrFinder::ApplySegmentColor(int sindex)
 	}
 }
 
-void CorrFinder::FindSegAdjacencyMatrix()
+void CorrFinder::FindSegAdjacencyMatrix(int ignoreJoint)
 {
 	Surface_mesh::Face_around_vertex_circulator fit, fend;
 	Surface_mesh::Vertex_iterator vit;
@@ -222,37 +265,52 @@ void CorrFinder::FindSegAdjacencyMatrix()
 			{
 				if (segs[i] != segs[j])
 				{
-					SourceSegAdjacencyMatrix(segs[i], segs[j]) = 1;
-					SourceSegAdjacencyMatrix(segs[j], segs[i]) = 1;
+					SourceSegAdjacencyMatrix(segs[i], segs[j]) += 1;
+					SourceSegAdjacencyMatrix(segs[j], segs[i]) += 1;
 				}		
 			}
 		}
 	}
 
-	for (int i = 0; i < SourceShapeSegmentNum; i++)
+	for (int i = 0; i < SourceSegAdjacencyMatrix.rows(); i++)
 	{
-		QVector<int> segs;
-		if (SourceShapeSegmentJointIndex[i] == 1)
-			continue;
-		for (int j = 0; j < SourceShapeSegmentNum; j++)
+		for (int j = 0; j < SourceSegAdjacencyMatrix.cols(); j++)
 		{
-			if (i == j || SourceShapeSegmentJointIndex[i] == 1)
+			if (i == j)
 				continue;
-			if (SourceSegAdjacencyMatrix(i, j) == 1)
-				segs.push_back(j);
+			if (SourceSegAdjacencyMatrix(i, j) > 5)
+				SourceSegAdjacencyMatrix(i, j) = 1;
 		}
-		for (int k = 0; k < segs.size(); k++)
+	}
+
+	if (ignoreJoint == 0)
+	{
+		for (int i = 0; i < SourceShapeSegmentNum; i++)
 		{
-			for (int j = k + 1; j < segs.size(); j++)
+			QVector<int> segs;
+			if (SourceShapeSegmentJointIndex[i] == 1)
+				continue;
+			for (int j = 0; j < SourceShapeSegmentNum; j++)
 			{
-				if (segs[k] != segs[j])
+				if (i == j || SourceShapeSegmentJointIndex[i] == 1)
+					continue;
+				if (SourceSegAdjacencyMatrix(i, j) == 1)
+					segs.push_back(j);
+			}
+			for (int k = 0; k < segs.size(); k++)
+			{
+				for (int j = k + 1; j < segs.size(); j++)
 				{
-					SourceSegAdjacencyMatrix(segs[k], segs[j]) = 1;
-					SourceSegAdjacencyMatrix(segs[j], segs[k]) = 1;
+					if (segs[k] != segs[j])
+					{
+						SourceSegAdjacencyMatrix(segs[k], segs[j]) = 1;
+						SourceSegAdjacencyMatrix(segs[j], segs[k]) = 1;
+					}
 				}
 			}
 		}
 	}
+	
 
 	for (vit = TargetShape->vertices_begin(); vit != TargetShape->vertices_end(); ++vit)
 	{
@@ -268,33 +326,47 @@ void CorrFinder::FindSegAdjacencyMatrix()
 			{
 				if (segs[i] != segs[j])
 				{
-					TargetSegAdjacencyMatrix(segs[i], segs[j]) = 1;
-					TargetSegAdjacencyMatrix(segs[j], segs[i]) = 1;
+					TargetSegAdjacencyMatrix(segs[i], segs[j]) += 1;
+					TargetSegAdjacencyMatrix(segs[j], segs[i]) += 1;
 				}		
 			}
 		}
 	}
 
-	for (int i = 0; i < TargetShapeSegmentNum; i++)
+	for (int i = 0; i < TargetSegAdjacencyMatrix.rows(); i++)
 	{
-		QVector<int> segs;
-		if (TargetShapeSegmentJointIndex[i] == 1)
-			continue;
-		for (int j = 0; j < TargetShapeSegmentNum; j++)
+		for (int j = 0; j < TargetSegAdjacencyMatrix.cols(); j++)
 		{
-			if (i == j || TargetShapeSegmentJointIndex[i] == 1)
+			if (i == j)
 				continue;
-			if (TargetSegAdjacencyMatrix(i, j) == 1)
-				segs.push_back(j);
+			if (TargetSegAdjacencyMatrix(i, j) > 5)
+				TargetSegAdjacencyMatrix(i, j) = 1;
 		}
-		for (int k = 0; k < segs.size(); k++)
+	}
+
+	if (ignoreJoint == 0)
+	{
+		for (int i = 0; i < TargetShapeSegmentNum; i++)
 		{
-			for (int j = k + 1; j < segs.size(); j++)
+			QVector<int> segs;
+			if (TargetShapeSegmentJointIndex[i] == 1)
+				continue;
+			for (int j = 0; j < TargetShapeSegmentNum; j++)
 			{
-				if (segs[k] != segs[j])
+				if (i == j || TargetShapeSegmentJointIndex[i] == 1)
+					continue;
+				if (TargetSegAdjacencyMatrix(i, j) == 1)
+					segs.push_back(j);
+			}
+			for (int k = 0; k < segs.size(); k++)
+			{
+				for (int j = k + 1; j < segs.size(); j++)
 				{
-					TargetSegAdjacencyMatrix(segs[k], segs[j]) = 1;
-					TargetSegAdjacencyMatrix(segs[j], segs[k]) = 1;
+					if (segs[k] != segs[j])
+					{
+						TargetSegAdjacencyMatrix(segs[k], segs[j]) = 1;
+						TargetSegAdjacencyMatrix(segs[j], segs[k]) = 1;
+					}
 				}
 			}
 		}
@@ -494,7 +566,7 @@ void CorrFinder::FlatSegMerge(double threshold, int SorT, QVector<int> &flat)
 			if (oth < threshold + 0.5)
 				continue;*/
 
-			if (!IsFlatMerge(i, j, SorT))
+			if (!IsFlatMerge(i, j, SorT, threshold))
 				continue;
 
 			MergeTwoSegs(i, j, SorT);
@@ -520,29 +592,33 @@ void CorrFinder::FlatSegMerge(double threshold, int SorT, QVector<int> &flat)
 	ApplySegmentColor();
 }
 
-bool CorrFinder::IsFlatMerge(int indexA, int indexB, int SorT)
+bool CorrFinder::IsFlatMerge(int indexA, int indexB, int SorT, double threshold)
 {
 	SurfaceMeshModel * proessShape;
 	int SegNum;
 	QVector<QVector<int>> SegmentIndex;
+	QVector<int> ShapeSegmentJointIndex;
 	if (SorT == 0)
 	{
 		proessShape = SourceShape;
 		SegNum = SourceShapeSegmentNum;
 		SegmentIndex = SourceShapeSegmentIndex;
+		ShapeSegmentJointIndex = SourceShapeSegmentJointIndex;
 	}
 	else
 	{
 		proessShape = TargetShape;
 		SegNum = TargetShapeSegmentNum;
 		SegmentIndex = TargetShapeSegmentIndex;
+		ShapeSegmentJointIndex = TargetShapeSegmentJointIndex;
 	}
 
 	Surface_mesh::Vertex_property<Surface_mesh::Vector3> points = proessShape->vertex_property<Surface_mesh::Vector3>("v:point");
 	Surface_mesh::Face_iterator fit, fend;
 	Surface_mesh::Vertex_around_face_circulator fvit, fvend;
 	std::vector<std::vector<Vector3d>> SegPoints;
-
+	std::vector<Vector3d> SegPointsTotal;
+	
 	SegPoints.resize(2);
 	fend = proessShape->faces_end();
 	int findex = 0;
@@ -556,27 +632,62 @@ bool CorrFinder::IsFlatMerge(int indexA, int indexB, int SorT)
 			for (int i = 0; i < flag.size(); i++)
 			{
 				if (flag[i] == indexA)
+				{
 					SegPoints[0].push_back(points[fvit]);
+					SegPointsTotal.push_back(points[fvit]);
+				}
 				else if (flag[i] == indexB)
+				{
 					SegPoints[1].push_back(points[fvit]);
+					SegPointsTotal.push_back(points[fvit]);
+				}
+					
 			}
 		} while (++fvit != fvend);
 		findex++;
 	}
 
+	OBB_Volume obbTotal(SegPointsTotal);
 	OBB_Volume obbA(SegPoints[0]);
 	OBB_Volume obbB(SegPoints[1]);
 
 	Eigen::Vector3d extantsA = obbA.extents();
 	Eigen::Vector3d extantsB = obbB.extents();
+	Eigen::Vector3d extantsTotal = obbTotal.extents();
 
-	int minA = 0, minB = 0;
+	int totalmiddle = 0;
+	for (int i = 0; i < 3; i++)
+	{
+		if (extantsTotal[i] != extantsTotal.maxCoeff() && extantsTotal[i] != extantsTotal.minCoeff())
+		{
+			totalmiddle = i;
+			break;
+		}
+	}
+
+	if (extantsTotal[totalmiddle] / extantsTotal.minCoeff() < threshold)
+		return false;
+
+	if (ShapeSegmentJointIndex[indexA] == -1 || ShapeSegmentJointIndex[indexB] == -1)
+		return true;
+
+	double vAB = extantsA[0] * extantsA[1] * extantsA[2] + extantsB[0] * extantsB[1] * extantsB[2];
+	double vtotal = extantsTotal[0] * extantsTotal[1] * extantsTotal[2];
+
+	if (vtotal / vAB > 1)
+		return false;
+	else
+		return true;
+
+	int minA = 0, minB = 0, minTotal = 0;
 	for (int i = 1; i < 3; i++)
 	{
 		if (extantsA[i] < extantsA[minA])
 			minA = i;
 		if (extantsB[i] < extantsB[minB])
 			minB = i;
+		if (extantsTotal[i] < extantsTotal[minTotal])
+			minTotal = i;
 	}
 
 	if (abs(extantsA[minA] - extantsB[minB]) / std::min(extantsA[minA], extantsB[minB]) > 1)
@@ -617,6 +728,7 @@ void CorrFinder::MergeTwoSegs(int A, int B, int SorT)
 	QVector<QVector<int>> SegmentIndex;
 	Eigen::MatrixXd SegAdjacencyMatrix;
 	QVector<int> SegmentJointIndex;
+	QVector<double> SegmentJointGC;
 	QVector<QVector<Eigen::Vector3d>> SegmentAxis;
 	QVector<QVector<Eigen::Vector3d>> SegmentAxisDirection;
 
@@ -629,6 +741,7 @@ void CorrFinder::MergeTwoSegs(int A, int B, int SorT)
 		SegmentJointIndex = SourceShapeSegmentJointIndex;
 		SegmentAxis = SourceShapeSegmentAxis;
 		SegmentAxisDirection = SourceShapeSegmentAxisDirection;
+		SegmentJointGC = SourceShapeSegmentGC;
 	}
 	else
 	{
@@ -639,6 +752,7 @@ void CorrFinder::MergeTwoSegs(int A, int B, int SorT)
 		SegmentJointIndex = TargetShapeSegmentJointIndex;
 		SegmentAxis = TargetShapeSegmentAxis;
 		SegmentAxisDirection = TargetShapeSegmentAxisDirection;
+		SegmentJointGC = TargetShapeSegmentGC;
 	}
 
 	int minS = std::min(A, B);
@@ -678,6 +792,7 @@ void CorrFinder::MergeTwoSegs(int A, int B, int SorT)
 
 	SegNum--;
 	SegmentJointIndex.erase(SegmentJointIndex.begin() + maxS);
+	SegmentJointGC.erase(SegmentJointGC.begin() + maxS);
 	SegmentAxis.erase(SegmentAxis.begin() + maxS);
 	SegmentAxisDirection.erase(SegmentAxisDirection.begin() + maxS);
 
@@ -687,6 +802,7 @@ void CorrFinder::MergeTwoSegs(int A, int B, int SorT)
 		SourceShapeSegmentIndex = SegmentIndex;
 		SourceSegAdjacencyMatrix = SegAdjacencyMatrix;
 		SourceShapeSegmentJointIndex = SegmentJointIndex;
+		SourceShapeSegmentGC = SegmentJointGC;
 		SourceShapeSegmentAxis = SegmentAxis;
 		SourceShapeSegmentAxisDirection = SegmentAxisDirection;
 	}
@@ -696,6 +812,7 @@ void CorrFinder::MergeTwoSegs(int A, int B, int SorT)
 		TargetShapeSegmentIndex = SegmentIndex;
 		TargetSegAdjacencyMatrix = SegAdjacencyMatrix;
 		TargetShapeSegmentJointIndex = SegmentJointIndex;
+		TargetShapeSegmentGC = SegmentJointGC;
 		TargetShapeSegmentAxis = SegmentAxis;
 		TargetShapeSegmentAxisDirection = SegmentAxisDirection;
 	}
@@ -820,6 +937,46 @@ void CorrFinder::MergeGraphSegToParts(int SorT)
 
 			SegmentGroupFromGraph newgroup = MergeGroups(GraphGroups[i], GraphGroups[j], type, align);
 			if (!IsExistedGroups(GraphGroups, newgroup))
+				GraphGroups.push_back(newgroup);
+		}
+	}
+
+	for (int i = 0; i < GraphGroups.size(); i++)
+	{
+		if (GraphGroups[i].labels.size() == 1)
+			continue;
+		QVector<QVector<int>> seqs;
+		QVector<int> tmp;
+		tmp.resize(GraphGroups[i].labels.size());
+		Permutation(GraphGroups[i].labels.size(), tmp, seqs, 0);
+		QVector<SegmentGroupFromGraph> tmpseggroups;
+		for (int j = 0; j < GraphGroups[i].labels.size(); j++)
+		{
+			SegmentGroupFromGraph newgroup;
+			newgroup.labels.resize(1);
+			newgroup.SegmentAxis.resize(1);
+			newgroup.SegmentAxisDirection.resize(1);
+			newgroup.labels[0] = GraphGroups[i].labels[j];
+			newgroup.SegmentAxis[0] = GraphGroups[i].SegmentAxis[j];
+			newgroup.SegmentAxisDirection[0] = GraphGroups[i].SegmentAxisDirection[j];
+			tmpseggroups.push_back(newgroup);
+		}
+		for (int j = 0; j < seqs.size(); j++)
+		{
+			int flag = 1;
+			SegmentGroupFromGraph newgroup = tmpseggroups[seqs[j][0]];
+			for (int k = 1; k < GraphGroups[i].labels.size(); k++)
+			{
+				QVector<int> align;
+				if (!IsAdjacented(newgroup, tmpseggroups[seqs[j][k]], SorT, align))
+					break;
+				QVector<int> type;
+				if (!IsSmoothConnected(newgroup, tmpseggroups[seqs[j][k]], align, type))
+					break;
+				newgroup = MergeGroups(newgroup, tmpseggroups[seqs[j][k]], type, align);
+				flag++;
+			}
+			if (flag == GraphGroups[i].labels.size() && !IsExistedGroups(GraphGroups, newgroup))
 				GraphGroups.push_back(newgroup);
 		}
 	}
@@ -1588,50 +1745,87 @@ void CorrFinder::MergeStraightConnectedCylinders(int SorT)
 		SegmentAxisDirection = TargetShapeSegmentAxisDirection;
 	}
 
-	QVector<double> volumes;
-	for (int i = 0; i < SegNum; i++)
-		volumes.push_back(ShapeSegment[i]->bbox().sizes()[0] * ShapeSegment[i]->bbox().sizes()[1] * ShapeSegment[i]->bbox().sizes()[2]);
-
-	QVector<Eigen::Vector3d > directions;
-	for (int i = 0; i < SegNum; i++)
-	{
-		Eigen::Vector3d tmp = Eigen::Vector3d::Zero();
-		for each (Eigen::Vector3d d in SegmentAxisDirection[i])
-			tmp += d;
-		tmp = tmp / SegmentAxisDirection[i].size();
-		directions.push_back(tmp);
-	}
-
 	for (int i = 0; i < SegNum; i++)
 	{
 		for (int j = i + 1; j < SegNum; j++)
 		{
 			if (SegAdjacencyMatrix(i, j) == 1 && SegmentJointIndex[i] == 1 && SegmentJointIndex[j] == 1)
 			{
-				double threshold = std::min(volumes[i] / volumes[j], volumes[j] / volumes[i]);
-				if (threshold > 0.3)
-					continue;
-				directions[i].normalize();
-				directions[j].normalize();
-				threshold = abs(directions[i].dot(directions[j]));
-				if (threshold > 0.9)
+				bool flag = false;
+				for (int k = 0; k < SegNum; k++)
+					if (SegmentJointIndex[k] == -1 && SegAdjacencyMatrix(k, j) == 1 && SegAdjacencyMatrix(k, i) == 1)
+					{
+						flag = true;
+					}
+				if (flag) continue;
+				
+				int type;
+				if (IsSmoothConnected(SegmentAxis[i], SegmentAxis[j], SegmentAxisDirection[i], SegmentAxisDirection[j], type, 0.8))
 				{
+					QVector<Eigen::Vector3d> newaxis;
+					QVector<Eigen::Vector3d> newaxisdirection;
+					switch (type)
+					{
+					case 0:
+						for each (Eigen::Vector3d v in SegmentAxis[i])
+							newaxis.push_back(v);
+						for each (Eigen::Vector3d v in SegmentAxis[j])
+							newaxis.push_front(v);
+						for each (Eigen::Vector3d v in SegmentAxisDirection[i])
+							newaxisdirection.push_back(v);
+						for each (Eigen::Vector3d v in SegmentAxisDirection[j])
+							newaxisdirection.push_front(v);
+						break;
+					case 1:
+						for each (Eigen::Vector3d v in SegmentAxis[j])
+							newaxis.push_back(v);
+						for each (Eigen::Vector3d v in SegmentAxis[i])
+							newaxis.push_back(v);
+						for each (Eigen::Vector3d v in SegmentAxisDirection[j])
+							newaxisdirection.push_back(v);
+						for each (Eigen::Vector3d v in SegmentAxisDirection[i])
+							newaxisdirection.push_back(v);
+						break;
+					case 2:
+						for each (Eigen::Vector3d v in SegmentAxis[i])
+							newaxis.push_back(v);
+						for each (Eigen::Vector3d v in SegmentAxis[j])
+							newaxis.push_back(v);
+						for each (Eigen::Vector3d v in SegmentAxisDirection[i])
+							newaxisdirection.push_back(v);
+						for each (Eigen::Vector3d v in SegmentAxisDirection[j])
+							newaxisdirection.push_back(v);
+						break;
+					case 3:
+						for each (Eigen::Vector3d v in SegmentAxis[i])
+							newaxis.push_back(v);
+						for (int k = SegmentAxis[j].size() - 1; k > -1; k--)
+							newaxis.push_back(SegmentAxis[j][k]);
+						for each (Eigen::Vector3d v in SegmentAxisDirection[i])
+							newaxisdirection.push_back(v);
+						for (int k = SegmentAxisDirection[j].size() - 1; k > -1; k--)
+							newaxisdirection.push_back(SegmentAxisDirection[j][k]);
+						break;
+					}
+
 					MergeTwoSegs(i, j, SorT);
-					directions[i] = (directions[i] + directions[j]) / 2;
-					volumes[i] = volumes[i] + volumes[j];
-					volumes.erase(volumes.begin() + j);
-					directions.erase(directions.begin() + j);
 					j = i + 1;
 					SegNum--;
+					SegmentAxis[i] = newaxis;
+					SegmentAxisDirection[i] = newaxisdirection;
 					if (SorT == 0)
 					{
 						SegAdjacencyMatrix = SourceSegAdjacencyMatrix;
 						SegmentJointIndex = SourceShapeSegmentJointIndex;
+						SourceShapeSegmentAxis[i] = newaxis;
+						SourceShapeSegmentAxisDirection[i] = newaxisdirection;
 					}
 					else
 					{
 						SegAdjacencyMatrix = TargetSegAdjacencyMatrix;
 						SegmentJointIndex = TargetShapeSegmentJointIndex;
+						TargetShapeSegmentAxis[i] = newaxis;
+						TargetShapeSegmentAxisDirection[i] = newaxisdirection;
 					}
 				}
 			}
@@ -1644,6 +1838,7 @@ void CorrFinder::GeneratePartSet()
 	FindSegAdjacencyMatrix();
 	FlatSegMerge(2.5, 0, SourceShapeSegmentFlatIndex);
 	FlatSegMerge(2.5, 1, TargetShapeSegmentFlatIndex);
+
 	GetSegFaceNum();
 	GenerateSegMeshes(0);
 	GenerateSegMeshes(1);
@@ -1667,6 +1862,7 @@ void CorrFinder::GenerateGroupsFromGraph()
 		SegGraphNode tmp;
 		tmp.labels.push_back(i);
 		tmp.lowest = SourceShapeSegment[i]->bbox().min()[2];
+		tmp.feature = SourceShapeSegment[i]->bbox().max() - SourceShapeSegment[i]->bbox().min();
 		GraphS.AddNode(tmp);
 		rnum++;
 	}
@@ -1688,6 +1884,7 @@ void CorrFinder::GenerateGroupsFromGraph()
 		}
 		SourceGraphGroups.push_back(tmp);
 	}
+	GraphS.OutputInitialGraph();
 
 	SegGraph GraphT;
 	rnum = 0;
@@ -1698,6 +1895,7 @@ void CorrFinder::GenerateGroupsFromGraph()
 		SegGraphNode tmp;
 		tmp.labels.push_back(i);
 		tmp.lowest = TargetShapeSegment[i]->bbox().min()[2];
+		tmp.feature = TargetShapeSegment[i]->bbox().max() - TargetShapeSegment[i]->bbox().min();
 		GraphT.AddNode(tmp);
 		rnum++;
 	}
@@ -2010,6 +2208,7 @@ bool CorrFinder::LoadParialPartFile()
 	SourceShapeSegmentIndex.resize(SourceShapeSegmentNum);
 	SourceShapeSegmentAxis.resize(SourceShapeSegmentNum);
 	SourceShapeSegmentAxisDirection.resize(SourceShapeSegmentNum);
+	SourceShapeSegmentGC.resize(SourceShapeSegmentNum);
 
 	str = in_target.readLine();
 	strtmp = str.split(" ");
@@ -2018,10 +2217,14 @@ bool CorrFinder::LoadParialPartFile()
 	TargetShapeSegmentIndex.resize(TargetShapeSegmentNum);
 	TargetShapeSegmentAxis.resize(TargetShapeSegmentNum);
 	TargetShapeSegmentAxisDirection.resize(TargetShapeSegmentNum);
+	TargetShapeSegmentGC.resize(TargetShapeSegmentNum);
 
 	for (int i = 0; i < SourceShapeSegmentNum; i++)
 	{
-		for (int j = 0; j < 8; j++)
+		str = in_source.readLine();
+		str = in_source.readLine();
+		SourceShapeSegmentGC[i] = str.toDouble();
+		for (int j = 0; j < 6; j++)
 			str = in_source.readLine();
 		int axisNum = str.toInt();
 		SourceShapeSegmentAxis[i].resize(axisNum);
@@ -2055,7 +2258,10 @@ bool CorrFinder::LoadParialPartFile()
 
 	for (int i = 0; i < TargetShapeSegmentNum; i++)
 	{
-		for (int j = 0; j < 8; j++)
+		str = in_target.readLine();
+		str = in_target.readLine();
+		TargetShapeSegmentGC[i] = str.toDouble();
+		for (int j = 0; j < 6; j++)
 			str = in_target.readLine();
 		int axisNum = str.toInt();
 		TargetShapeSegmentAxis[i].resize(axisNum);
