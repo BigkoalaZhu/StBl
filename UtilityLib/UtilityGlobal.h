@@ -407,7 +407,59 @@ static inline void Permutation(int n, QVector<int> A, QVector<QVector<int>> &set
 			}
 		}
 }
-  
+
+static inline void closeHoles(SurfaceMeshModel * part)
+{
+	Surface_mesh::Halfedge_property<bool> hvisisted = part->halfedge_property<bool>("h:visisted", false);
+
+	std::vector< std::vector<Halfedge> > holes;
+
+	for (Halfedge h : part->halfedges()){
+		if (!part->is_boundary(h) || hvisisted[h]) continue;
+
+		std::vector<Halfedge> hole;
+
+		Halfedge hinit = h;
+		h = part->next_halfedge(h);
+
+		while (h != hinit) {
+			hole.push_back(h);
+			hvisisted[h] = true;
+			h = part->next_halfedge(h);
+		}
+		hole.push_back(h);
+
+		holes.push_back(hole);
+	}
+
+	Vector3VertexProperty points = part->vertex_coordinates();
+
+	for (std::vector<Halfedge> hole : holes){
+		std::vector<Vertex> holeVerts;
+		for (auto h : hole){
+			Vertex v = part->to_vertex(h);
+			holeVerts.push_back(v);
+		}
+
+		// Compute hole center
+		Vector3 center(0, 0, 0);
+		for (auto v : holeVerts) center += points[v];
+		center /= holeVerts.size();
+
+		Vertex c = part->add_vertex(center);
+
+		for (size_t vi = 0; vi < holeVerts.size(); vi++){
+			std::vector<Vertex> face;
+
+			face.push_back(holeVerts[vi]);
+			face.push_back(holeVerts[(vi + 1) % holeVerts.size()]);
+			face.push_back(c);
+
+			part->add_face(face);
+		}
+	}
+}
+
 static inline bool copyDirectoryFiles(const QString &fromDir, const QString &toDir, bool coverFileIfExist)
 {
 	QDir sourceDir(fromDir);

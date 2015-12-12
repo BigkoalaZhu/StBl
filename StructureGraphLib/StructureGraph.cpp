@@ -32,11 +32,11 @@ Graph::Graph()
 	init();
 }
 
-Graph::Graph( QString fileName )
+Graph::Graph( QString fileName, int flag )
 {
 	init();
 
-	loadFromFile( fileName );
+	loadFromFile(fileName, flag);
 	property["name"] = fileName;
 }
 
@@ -1001,7 +1001,7 @@ void Graph::saveToFile( QString fileName, bool isOutParts /*= true*/ ) const
 	file.close();
 }
 
-void Graph::loadFromFile( QString fileName )
+void Graph::loadFromFile(QString fileName, int flag)
 {
 	// Clear data
 	nodes.clear();
@@ -1154,7 +1154,10 @@ void Graph::loadFromFile( QString fileName )
 			}
 		}
 
-		addEdge(getNode(n1_id), getNode(n2_id), coords.front(), coords.back(), id);
+		if (flag == 1)
+			addEdge(getNode(n1_id), getNode(n2_id), coords.front(), coords.back(), id);
+		else
+			addEdge(getNode(n1_id), getNode(n2_id));
 	}
 
     // For each group

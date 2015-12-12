@@ -5,6 +5,11 @@
 #include "OBB_Volume.h"
 #include "UtilityGlobal.h"
 #include "SegGraph.h"
+#include "nurbs_global.h"
+#include "BoundaryFitting.h"
+
+#include "writeOBJ.h"
+#include "RichParameterSet.h"
 
 CorrFinder::CorrFinder()
 {
@@ -24,10 +29,262 @@ CorrFinder::~CorrFinder()
 {
 }
 
+std::vector<Vertex> CorrFinder::collectRings(SurfaceMeshModel * part, Vertex v, size_t min_nb)
+{
+	std::vector<Vertex> all;
+	std::vector<Vertex> current_ring, next_ring;
+	SurfaceMeshModel::Vertex_property<int> visited_map = part->vertex_property<int>("v:visit_map", -1);
+
+	//initialize
+	visited_map[v] = 0;
+	current_ring.push_back(v);
+	all.push_back(v);
+
+	int i = 1;
+
+	while ((all.size() < min_nb) && (current_ring.size() != 0)){
+		// collect i-th ring
+		std::vector<Vertex>::iterator it = current_ring.begin(), ite = current_ring.end();
+
+		for (; it != ite; it++){
+			// push neighbors of 
+			SurfaceMeshModel::Halfedge_around_vertex_circulator hedgeb = part->halfedges(*it), hedgee = hedgeb;
+			do{
+				Vertex vj = part->to_vertex(hedgeb);
+
+				if (visited_map[vj] == -1){
+					visited_map[vj] = i;
+					next_ring.push_back(vj);
+					all.push_back(vj);
+				}
+
+				++hedgeb;
+			} while (hedgeb != hedgee);
+		}
+
+		//next round must be launched from p_next_ring...
+		current_ring = next_ring;
+		next_ring.clear();
+
+		i++;
+	}
+
+	//clean up
+	part->remove_vertex_property(visited_map);
+
+	return all;
+}
+
+NURBS::NURBSRectangled CorrFinder::surfaceFit(SurfaceMeshModel * part)
+{
+	Surface_mesh::Vertex_property<Vector3> points = part->vertex_property<Vector3>("v:point");
+
+	/// Pick a side by clustering normals
+
+	// 1) Find edge with flat dihedral angle
+	SurfaceMeshModel::Vertex_property<double> vals = part->vertex_property<double>("v:vals", 0);
+	foreach(Vertex v, part->vertices()){
+		double sum = 0.0;
+		foreach(Vertex v, collectRings(part, v, 12)){
+			foreach(Halfedge h, part->onering_hedges(v)){
+				sum += abs(calc_dihedral_angle(part, h));
+			}
+		}
+		vals[v] = sum;
+	}
+
+	double minSum = DBL_MAX;
+	Vertex minVert;
+	foreach(Vertex v, part->vertices()){
+		if (vals[v] < minSum){
+			minSum = vals[v];
+			minVert = v;
+		}
+	}
+	Halfedge startEdge = part->halfedge(minVert);
+
+	// 2) Grow region by comparing difference of adjacent dihedral angles
+	double angleThreshold = deg_to_rad(40.0);
+
+	SurfaceMesh::Model::Vertex_property<bool> vvisited = part->add_vertex_property<bool>("v:visited", false);
+
+	QStack<SurfaceMesh::Model::Vertex> to_visit;
+	to_visit.push(part->to_vertex(startEdge));
+
+	while (!to_visit.empty())
+	{
+		Vertex cur_v = to_visit.pop();
+		if (vvisited[cur_v]) continue;
+		vvisited[cur_v] = true;
+
+		// Sum of angles around
+		double sumAngles = 0.0;
+		foreach(Halfedge hj, part->onering_hedges(cur_v)){
+			sumAngles += abs(calc_dihedral_angle(part, hj));
+		}
+
+		foreach(Halfedge hj, part->onering_hedges(cur_v))
+		{
+			Vertex vj = part->to_vertex(hj);
+			if (sumAngles < angleThreshold)
+				to_visit.push(vj);
+			else
+				vvisited[vj];
+		}
+	}
+
+	// Get filtered inner vertices of selected side
+	int shrink_count = 2;
+	std::set<Vertex> inner;
+	std::set<Vertex> border;
+	for (int i = 0; i < shrink_count; i++)
+	{
+		std::set<Vertex> all_points;
+		foreach(Vertex v, part->vertices())
+			if (vvisited[v]) all_points.insert(v);
+
+		border.clear();
+		foreach(Vertex v, part->vertices()){
+			if (vvisited[v]){
+				foreach(Halfedge hj, part->onering_hedges(v)){
+					Vertex vj = part->to_vertex(hj);
+					if (!vvisited[vj])
+						border.insert(vj);
+				}
+			}
+		}
+
+		inner.clear();
+		std::set_difference(all_points.begin(), all_points.end(), border.begin(), border.end(),
+			std::inserter(inner, inner.end()));
+
+		// Shrink one level
+		foreach(Vertex vv, border){
+			foreach(Halfedge hj, part->onering_hedges(vv))
+				vvisited[part->to_vertex(hj)] = false;
+		}
+	}
+
+	SurfaceMesh::Model * submesh = NULL;
+
+	bool isOpen = false;
+	foreach(Vertex v, part->vertices()){
+		if (part->is_boundary(v)){
+			isOpen = true;
+			break;
+		}
+	}
+
+	if (!isOpen)
+	{
+		// Collect inner faces
+		std::set<Face> innerFaces;
+		std::set<Vertex> inFacesVerts;
+		foreach(Vertex v, inner)
+		{
+			foreach(Halfedge hj, part->onering_hedges(v)){
+				Face f = part->face(hj);
+				innerFaces.insert(f);
+				Surface_mesh::Vertex_around_face_circulator vit = part->vertices(f), vend = vit;
+				do{ inFacesVerts.insert(Vertex(vit)); } while (++vit != vend);
+			}
+		}
+
+		// Create sub-mesh
+		submesh = new SurfaceMesh::Model("SideFlat.obj", "SideFlat");
+
+		// Add vertices
+		std::map<Vertex, Vertex> vmap;
+		foreach(Vertex v, inFacesVerts){
+			vmap[v] = Vertex(vmap.size());
+			submesh->add_vertex(points[v]);
+		}
+
+		// Add faces
+		foreach(Face f, innerFaces){
+			std::vector<Vertex> verts;
+			Surface_mesh::Vertex_around_face_circulator vit = part->vertices(f), vend = vit;
+			do{ verts.push_back(Vertex(vit)); } while (++vit != vend);
+			submesh->add_triangle(vmap[verts[0]], vmap[verts[1]], vmap[verts[2]]);
+		}
+	}
+	else
+	{
+		submesh = part;
+	}
+
+	{
+		//ModifiedButterfly subdiv;
+		//subdiv.subdivide((*(Surface_mesh*)submesh),1);
+	}
+
+
+	submesh->isVisible = false;
+
+	Vector3VertexProperty sub_points = submesh->vertex_property<Vector3>("v:point");
+
+/*	// Smoothing
+	{
+		int numIteration = 3;
+		bool protectBorders = true;
+
+		Surface_mesh::Vertex_property<Point> newPositions = submesh->vertex_property<Point>("v:new_point", Vector3(0, 0, 0));
+		Surface_mesh::Vertex_around_vertex_circulator vvit, vvend;
+
+		// This method uses the basic equal weights Laplacian operator
+		for (int iteration = 0; iteration < numIteration; iteration++)
+		{
+			Surface_mesh::Vertex_iterator vit, vend = submesh->vertices_end();
+
+			// Original positions, for boundary
+			for (vit = submesh->vertices_begin(); vit != vend; ++vit)
+				newPositions[vit] = sub_points[vit];
+
+			// Compute Laplacian
+			for (vit = submesh->vertices_begin(); vit != vend; ++vit)
+			{
+				if (!protectBorders || (protectBorders && !submesh->is_boundary(vit)))
+				{
+					newPositions[vit] = Point(0, 0, 0);
+
+					// Sum up neighbors
+					vvit = vvend = submesh->vertices(vit);
+					do{ newPositions[vit] += sub_points[vvit]; } while (++vvit != vvend);
+
+					// Average it
+					newPositions[vit] /= submesh->valence(vit);
+				}
+			}
+
+			// Set vertices to final position
+			for (vit = submesh->vertices_begin(); vit != vend; ++vit)
+				sub_points[vit] = newPositions[vit];
+		}
+
+		submesh->remove_vertex_property(newPositions);
+	}*/
+
+	/// ==================
+	// Fit rectangle
+
+	BoundaryFitting bf((SurfaceMeshModel*)submesh);
+
+
+	Array2D_Vector3 cp = bf.lines;
+
+	if (!cp.size()) return NURBS::NURBSRectangled::createSheet(Vector3d(0.0, 0.0, 0.0), Vector3d(0.01, 0.01, 0.01));
+
+	Array2D_Real cw(cp.size(), Array1D_Real(cp.front().size(), 1.0));
+	int degree = 3;
+	return NURBS::NURBSRectangled(cp, cw, degree, degree, false, false, true, true);
+}
+
 void CorrFinder::DrawPartShape()
 {
-	QuickMeshDraw::drawPartMeshSolid(SourceShape, SurfaceMesh::Vector3(-0.5, 0, 0));
-	QuickMeshDraw::drawPartMeshSolid(TargetShape, SurfaceMesh::Vector3(0.5, 0, 0));
+	{
+		QuickMeshDraw::drawPartMeshSolid(SourceShape, SurfaceMesh::Vector3(-0.5, 0, 0));
+		QuickMeshDraw::drawPartMeshSolid(TargetShape, SurfaceMesh::Vector3(0.5, 0, 0));
+	}
 }
 
 bool CorrFinder::LoadPairFile(QString filepath, bool hasPart, bool hasInbetween)
@@ -449,6 +706,7 @@ void CorrFinder::GenerateSegMeshes(int SorT)
 		for (auto v : SegmentMeshes[i]->vertices()) if (SegmentMeshes[i]->is_isolated(v)) SegmentMeshes[i]->remove_vertex(v);
 		SegmentMeshes[i]->garbage_collection();
 		SegmentMeshes[i]->updateBoundingBox();
+		closeHoles(SegmentMeshes[i]);
 		SegmentMeshes[i]->update_face_normals();
 		SegmentMeshes[i]->update_vertex_normals();
 	}
@@ -984,8 +1242,14 @@ void CorrFinder::MergeGraphSegToParts(int SorT)
 	for (int i = 0; i < GraphGroups.size(); i++)
 	{
 		GraphGroups[i].joints.resize(GraphGroups[i].labels.size());
+		GraphGroups[i].meshes.resize(GraphGroups[i].labels.size());
 		for (int j = 0; j < GraphGroups[i].labels.size(); j++)
 		{
+			for (int k = 0; k < GraphGroups[i].labels[j].size(); k++)
+			{
+				if (!GraphGroups[i].allseg.contains(GraphGroups[i].labels[j][k]))
+					GraphGroups[i].allseg.push_back(GraphGroups[i].labels[j][k]);
+			}
 			if (GraphGroups[i].labels[j].size() < 2)
 				continue;
 			for (int k = 0; k < SegNum; k++)
@@ -1002,7 +1266,18 @@ void CorrFinder::MergeGraphSegToParts(int SorT)
 					GraphGroups[i].joints[j].push_back(k);
 			}
 		}
+		for (int j = 0; j < GraphGroups[i].labels.size(); j++)
+		{
+			QVector<int> allindex;
+			for (int k = 0; k < GraphGroups[i].labels[j].size(); k++)
+				allindex.push_back(GraphGroups[i].labels[j][k]);
+			for (int k = 0; k < GraphGroups[i].joints[j].size(); k++)
+				allindex.push_back(GraphGroups[i].joints[j][k]);
+			GraphGroups[i].meshes[j] = mergedSeg(allindex, SorT);
+		}
 	}
+
+
 
 	if (SorT == 0)
 		SourceGraphGroups = GraphGroups;
@@ -1200,6 +1475,42 @@ bool CorrFinder::IsAdjacented(SegmentGroupFromGraph groupA, SegmentGroupFromGrap
 	if (flag != groupA.labels.size())
 		return false;
 
+	return true;
+}
+
+bool CorrFinder::IsAdjacented(SegmentGroupFromGraph groupA, SegmentGroupFromGraph groupB, int SorT)
+{
+	Eigen::MatrixXd SegAdjacencyMatrix;
+
+	if (SorT == 0)
+	{
+		SegAdjacencyMatrix = SourceSegAdjacencyMatrix;
+	}
+	else
+	{
+		SegAdjacencyMatrix = TargetSegAdjacencyMatrix;
+	}
+
+	if (groupA.labels.size() != groupB.labels.size())
+		return false;
+
+	Eigen::MatrixXd CorrCandidates = Eigen::MatrixXd::Zero(groupA.labels.size(), groupA.labels.size());
+	for (int i = 0; i < groupA.labels.size(); i++)
+	{
+		for (int j = 0; j < groupB.labels.size(); j++)
+		{
+			int err = 0;
+			if (!IsAdjacented(groupA.labels[i], groupB.labels[j], SorT, err))
+			{
+				if (err == 1)
+					return false;
+				continue;
+			}
+			CorrCandidates(i, j) = 1;
+		}
+		if (CorrCandidates.row(i).sum() == 0)
+			return false;
+	}
 	return true;
 }
 
@@ -1846,9 +2157,311 @@ void CorrFinder::GeneratePartSet()
 	GenerateGroupsFromGraph();
 	MergeGraphSegToParts(0);
 	MergeGraphSegToParts(1);
+	samplePartialGraphs();
+//	buildStructureGraph();
+}
 
-//	MergeSegToParts(0);
-//	MergeSegToParts(1);
+void CorrFinder::samplePartialGraphs(int step, int totalNum)
+{
+	srand((unsigned)time(NULL));
+	AdjacencySourceGraphGroups = Eigen::MatrixXd::Identity(SourceGraphGroups.size(), SourceGraphGroups.size());
+	Eigen::MatrixXd BanSourceGraphGroups = Eigen::MatrixXd::Identity(SourceGraphGroups.size(), SourceGraphGroups.size());
+	for (int i = 0; i < SourceGraphGroups.size(); i++)
+	{
+		for (int j = i + 1; j < SourceGraphGroups.size(); j++)
+		{
+			int err = 0;
+			if (IsAdjacented(SourceGraphGroups[i].allseg, SourceGraphGroups[j].allseg, 0, err))
+			{
+				AdjacencySourceGraphGroups(i, j) = 1;
+				AdjacencySourceGraphGroups(j, i) = 1;
+			}
+			if (err == 1)
+			{
+				BanSourceGraphGroups(i, j) = 1;
+				BanSourceGraphGroups(j, i) = 1;
+			}
+		}
+	}
+	SourceStructureGraphs.clear();
+	QVector<QVector<int>> visited;
+	while (SourceStructureGraphs.size() < totalNum)
+	{
+		InitialStructureGraph newGraph;
+
+		int added = 1;
+		QVector<int> newVisited;
+		int seedIndex = rand() % SourceGraphGroups.size();
+		newVisited.push_back(seedIndex);
+		insertNodeInGraph(newGraph, SourceGraphGroups[seedIndex], 0);
+		int currentNode = seedIndex;
+		while (added < step)
+		{
+			int tmpcurrent;
+			int l = AdjacencySourceGraphGroups.row(currentNode).sum() - 1;
+			int tmp = rand() % l + 1;
+			for (int i = 0; i < SourceGraphGroups.size(); i++)
+			{
+				if (AdjacencySourceGraphGroups(currentNode, i) == 1)
+				{
+					tmp--;
+				}
+				if (tmp == 0)
+				{
+					tmpcurrent = i;
+					break;
+				}
+			}
+			if (insertNodeInGraph(newGraph, SourceGraphGroups[tmpcurrent], 0))
+			{
+				added++;
+				for (int i = 0; i < newVisited.size(); i++)
+				{
+					if (tmpcurrent < newVisited[i])
+					{
+						newVisited.insert(newVisited.begin() + i, tmpcurrent);
+						break;
+					}
+					if (i == newVisited.size() - 1)
+					{
+						newVisited.push_back(tmpcurrent);
+						break;
+					}
+						
+				}
+				currentNode = tmpcurrent;
+			}
+		}
+
+		if (!visited.contains(newVisited))
+		{
+			newGraph.edgeCoordA.resize(newGraph.edges.size());
+			newGraph.edgeCoordB.resize(newGraph.edges.size());
+			newGraph.sheets.resize(newGraph.curves.size());
+			/////////////////////////////////////////////////
+			for (int i = 0; i < newGraph.meshes.size(); i++)
+			{
+				if (newGraph.flatIndex[i] != 1)
+					continue;
+				OBB_Volume obb(newGraph.meshes[i]);
+				Eigen::Vector3d du, dv;
+				double lu, lv;
+				obb.First2Axis(du, dv, lu, lv);
+				newGraph.sheets[i] = NURBS::NURBSRectangled::createSheet(lu, lv, obb.center(), du, dv).mCtrlPoint;
+			}
+			SourceStructureGraphs.push_back(newGraph);
+			visited.push_back(newVisited);
+		}
+			
+	}
+
+	///////////////////
+	
+}
+
+bool CorrFinder::insertNodeInGraph(InitialStructureGraph &graph, SegmentGroupFromGraph node, int SorT)
+{
+	for (int i = 0; i < node.labels.size(); i++)
+	{
+		for (int j = 0; j < node.labels[i].size(); j++)
+		{
+			for (int k = 0; k < graph.indexes.size(); k++)
+			{
+				for (int n = 0; n < graph.indexes[k].size(); n++)
+					if (node.labels[i][j] == graph.indexes[k][n])
+						return false;
+			}
+		}
+	}
+	QVector<int> groupsIndex;
+	for (int i = 0; i < node.labels.size(); i++)
+	{
+		for (int j = 0; j < graph.meshes.size(); j++)
+		{
+			if (graph.edges.contains(QPair<int, int>(graph.meshes.size(), j)) || graph.edges.contains(QPair<int, int>(j, graph.meshes.size())))
+				continue;
+			int err;
+			if (IsAdjacented(node.labels[i], graph.indexes[j], SorT, err))
+				graph.edges.push_back(QPair<int, int>(graph.meshes.size(), j));
+		}
+		graph.meshes.push_back(node.meshes[i]);
+		graph.curves.push_back(node.SegmentAxis[i]);
+		graph.indexes.push_back(node.labels[i]);
+		if (node.flat == 1)
+			graph.flatIndex.push_back(1);
+		else
+			graph.flatIndex.push_back(0);
+		int index = graph.curves.size() - 1;
+		while (graph.curves[index].size() < 4)
+		{
+			Eigen::Vector3d middle = graph.curves[index][0] + graph.curves[index][1];
+			middle = middle / 2;
+			graph.curves[index].insert(graph.curves[index].begin() + 1, middle);
+		}
+		groupsIndex.push_back(graph.meshes.size() - 1);
+	}
+	graph.groups.push_back(groupsIndex);
+	return true;
+}
+
+void CorrFinder::buildStructureGraph()
+{
+	for (int i = 0; i < SourceShapeSegment.size(); i++)
+	{
+		if (SourceShapeSegmentJointIndex[i] == -1)
+			continue;
+		SourceStructureGraph.meshes.push_back(SourceShapeSegment[i]);
+		SourceStructureGraph.curves.push_back(SourceShapeSegmentAxis[i]);
+		if (SourceShapeSegmentFlatIndex[i] == 1)
+			SourceStructureGraph.flatIndex.push_back(1);
+		else
+			SourceStructureGraph.flatIndex.push_back(0);
+		for (int j = i + 1; j < SourceShapeSegment.size(); j++)
+		{
+			if (SourceShapeSegmentJointIndex[j] == -1)
+				continue;
+			if (SourceSegAdjacencyMatrix(i, j) == 1)
+			{
+				SourceStructureGraph.edges.push_back(QPair<int, int>(i, j));
+			}
+		}
+		int index = SourceStructureGraph.curves.size() - 1;
+		while (SourceStructureGraph.curves[index].size() < 4)
+		{
+			Eigen::Vector3d middle = SourceStructureGraph.curves[index][0] + SourceStructureGraph.curves[index][1];
+			middle = middle / 2;
+			SourceStructureGraph.curves[index].insert(SourceStructureGraph.curves[index].begin() + 1, middle);
+		}
+	}
+	SourceStructureGraph.edgeCoordA.resize(SourceStructureGraph.edges.size());
+	SourceStructureGraph.edgeCoordB.resize(SourceStructureGraph.edges.size());
+	SourceStructureGraph.sheets.resize(SourceStructureGraph.curves.size());
+	/////////////////////////////////////////////////
+	for (int i = 0; i < SourceShapeSegment.size(); i++)
+	{
+		if (SourceShapeSegmentJointIndex[i] == -1 || SourceShapeSegmentFlatIndex[i] != 1)
+			continue;
+		OBB_Volume obb(SourceStructureGraph.meshes[i]);
+		Eigen::Vector3d du, dv;
+		double lu, lv;
+		obb.First2Axis(du, dv, lu, lv);
+		SourceStructureGraph.sheets[i] = NURBS::NURBSRectangled::createSheet(lu, lv, obb.center(), du, dv).mCtrlPoint;
+	}
+	/////////////////////////////////////////////////
+
+	for (int i = 0; i < SourceUnoverlapGraphGroups.size(); i++)
+	{
+		if (SourceUnoverlapGraphGroups[i].labels.size() == 1)
+			continue;
+		QVector<int> group;
+		for (int j = 0; j < SourceUnoverlapGraphGroups[i].labels.size(); j++)
+			group.push_back(SourceUnoverlapGraphGroups[i].labels[j][0]);
+		SourceStructureGraph.groups.push_back(group);
+	}
+
+	for (int i = 0; i < TargetShapeSegment.size(); i++)
+	{
+		if (TargetShapeSegmentJointIndex[i] == -1)
+			continue;
+		TargetStructureGraph.meshes.push_back(TargetShapeSegment[i]);
+		TargetStructureGraph.curves.push_back(TargetShapeSegmentAxis[i]);
+		if (TargetShapeSegmentFlatIndex[i] == 1)
+			TargetStructureGraph.flatIndex.push_back(1);
+		else
+			TargetStructureGraph.flatIndex.push_back(0);
+		for (int j = i + 1; j < TargetShapeSegment.size(); j++)
+		{
+			if (TargetShapeSegmentJointIndex[j] == -1)
+				continue;
+			if (TargetSegAdjacencyMatrix(i, j) == 1)
+			{
+				TargetStructureGraph.edges.push_back(QPair<int, int>(i, j));
+			}
+		}
+		int index = TargetStructureGraph.curves.size() - 1;
+		while (TargetStructureGraph.curves[index].size() < 4)
+		{
+			Eigen::Vector3d middle = TargetStructureGraph.curves[index][0] + TargetStructureGraph.curves[index][1];
+			middle = middle / 2;
+			TargetStructureGraph.curves[index].insert(TargetStructureGraph.curves[index].begin() + 1, middle);
+		}
+	}
+	TargetStructureGraph.edgeCoordA.resize(TargetStructureGraph.edges.size());
+	TargetStructureGraph.edgeCoordB.resize(TargetStructureGraph.edges.size());
+	TargetStructureGraph.sheets.resize(TargetStructureGraph.curves.size());
+	/////////////////////////////////////////////////
+	for (int i = 0; i < TargetShapeSegment.size(); i++)
+	{
+		if (TargetShapeSegmentJointIndex[i] == -1 || TargetShapeSegmentFlatIndex[i] != 1)
+			continue;
+		OBB_Volume obb(TargetStructureGraph.meshes[i]);
+		Eigen::Vector3d du, dv;
+		double lu, lv;
+		obb.First2Axis(du, dv, lu, lv);
+		TargetStructureGraph.sheets[i] = NURBS::NURBSRectangled::createSheet(lu, lv, obb.center(), du, dv).mCtrlPoint;
+	}
+	/////////////////////////////////////////////////
+	for (int i = 0; i < TargetUnoverlapGraphGroups.size(); i++)
+	{
+		if (TargetUnoverlapGraphGroups[i].labels.size() == 1)
+			continue;
+		QVector<int> group;
+		for (int j = 0; j < TargetUnoverlapGraphGroups[i].labels.size(); j++)
+			group.push_back(TargetUnoverlapGraphGroups[i].labels[j][0]);
+		TargetStructureGraph.groups.push_back(group);
+	}
+}
+
+void CorrFinder::generateSheetPara()
+{
+/*	//////////////////////////////////////////////////////
+	for (int i = 0; i < SourceUnoverlapGraphGroups.size(); i++)
+	{
+		if (SourceUnoverlapGraphGroups[i].labels.size() != 1)
+			continue;
+		if (SourceShapeSegmentFlatIndex[SourceUnoverlapGraphGroups[i].labels[0][0]] != 1)
+			continue;
+		FilterPlugin * matPlugin = pluginManager()->getFilter("Skeleton | Voronoi based MAT");
+		RichParameterSet * mat_params = new RichParameterSet;
+		matPlugin->initParameters(mat_params);
+		document()->setSelectedModel(SourceShapeSegment[SourceUnoverlapGraphGroups[i].labels[0][0]]);
+		matPlugin->applyFilter(mat_params);
+		for (int j = 0; j < 3; j++)
+		{
+			FilterPlugin * mcfPlugin = pluginManager()->getFilter("Skeleton | MCF Skeletonization");
+
+			RichParameterSet * mcf_params = new RichParameterSet;
+			mcfPlugin->initParameters(mcf_params);
+			mcf_params->setValue("omega_P_0", 0.0f);
+			mcfPlugin->applyFilter(mcf_params);
+		}
+		SourceUnoverlapGraphGroups[i].SheetAxis = surfaceFit(SourceShapeSegment[SourceUnoverlapGraphGroups[i].labels[0][0]]);
+		SourceUnoverlapGraphGroups[i].flat = 1;
+	}
+
+	for (int i = 0; i < TargetUnoverlapGraphGroups.size(); i++)
+	{
+		if (TargetUnoverlapGraphGroups[i].labels.size() != 1)
+			continue;
+		if (TargetShapeSegmentFlatIndex[TargetUnoverlapGraphGroups[i].labels[0][0]] != 1)
+			continue;
+		FilterPlugin * matPlugin = pluginManager()->getFilter("Voronoi based MAT");
+		RichParameterSet * mat_params = new RichParameterSet;
+		matPlugin->initParameters(mat_params);
+		document()->setSelectedModel(TargetShapeSegment[TargetUnoverlapGraphGroups[i].labels[0][0]]);
+		matPlugin->applyFilter(mat_params);
+		for (int j = 0; j < 3; j++)
+		{
+			FilterPlugin * mcfPlugin = pluginManager()->getFilter("MCF Skeletonization");
+
+			RichParameterSet * mcf_params = new RichParameterSet;
+			mcfPlugin->initParameters(mcf_params);
+			mcf_params->setValue("omega_P_0", 0.0f);
+			mcfPlugin->applyFilter(mcf_params);
+		}
+		TargetUnoverlapGraphGroups[i].SheetAxis = surfaceFit(TargetShapeSegment[TargetUnoverlapGraphGroups[i].labels[0][0]]);
+		TargetUnoverlapGraphGroups[i].flat = 1;
+	}*/
 }
 
 void CorrFinder::GenerateGroupsFromGraph()
@@ -1881,10 +2494,15 @@ void CorrFinder::GenerateGroupsFromGraph()
 			tmp.labels.push_back(tmplabel);
 			tmp.SegmentAxis.push_back(SourceShapeSegmentAxis[GraphS.groups[i][j]]);
 			tmp.SegmentAxisDirection.push_back(SourceShapeSegmentAxisDirection[GraphS.groups[i][j]]);
+			for (int k = 0; k < tmplabel.size(); k++)
+			{
+				if (SourceShapeSegmentFlatIndex[tmplabel[k]] == 1)
+					tmp.flat = 1;
+			}
 		}
 		SourceGraphGroups.push_back(tmp);
 	}
-	GraphS.OutputInitialGraph();
+	SourceUnoverlapGraphGroups = SourceGraphGroups;
 
 	SegGraph GraphT;
 	rnum = 0;
@@ -1914,67 +2532,15 @@ void CorrFinder::GenerateGroupsFromGraph()
 			tmp.labels.push_back(tmplabel);
 			tmp.SegmentAxis.push_back(TargetShapeSegmentAxis[GraphT.groups[i][j]]);
 			tmp.SegmentAxisDirection.push_back(TargetShapeSegmentAxisDirection[GraphT.groups[i][j]]);
+			for (int k = 0; k < tmplabel.size(); k++)
+			{
+				if (TargetShapeSegmentFlatIndex[tmplabel[k]] == 1)
+					tmp.flat = 1;
+			}
 		}
 		TargetGraphGroups.push_back(tmp);
 	}
-
-/*	QVector<QPair<int, int>> Invaild;
-	int candidatsNum = SourceGraphGroups.size();
-	for (int i = 0; i < SourceGraphGroups.size(); i++)
-	{
-		if (i > candidatsNum)
-			candidatsNum = SourceGraphGroups.size();
-		for (int j = 0; j < candidatsNum; j++)
-		{
-			if (i == j || Invaild.contains(QPair<int, int>(i, j)) || SourceGraphGroups[i].labels.size() != SourceGraphGroups[j].labels.size())
-				continue;
-			bool flag = false;
-			QVector<QVector<int>> Adjacent;
-			Adjacent.resize(SourceGraphGroups[i].labels.size());
-			int countM = 0, countN = 0;
-			for (int m = 0; m < SourceGraphGroups[i].labels.size(); m++)
-			{
-				bool tmpflag = false;
-				for (int n = 0; n < SourceGraphGroups[j].labels.size(); n++)
-				{
-					if (!IsAdjacented(SourceGraphGroups[i].labels[m], SourceGraphGroups[j].labels[n], 0))
-					{
-						flag = true;
-						m = SourceGraphGroups[i].labels.size();
-						break;
-					}
-					Adjacent[m].push_back(n);
-					tmpflag = true;
-				}
-				if (tmpflag)
-					countM++;
-			}
-			if (flag)
-				continue;
-			for (int m = 0; m < SourceGraphGroups[j].labels.size(); m++)
-			{
-				bool tmpflag = false;
-				for (int n = 0; n < SourceGraphGroups[i].labels.size(); n++)
-				{
-					if (!IsAdjacented(SourceGraphGroups[j].labels[m], SourceGraphGroups[i].labels[n], 0))
-					{
-						flag = true;
-						m = SourceGraphGroups[j].labels.size();
-						break;
-					}
-					tmpflag = true;
-				}
-				if (tmpflag)
-					countN++;
-			}
-			if (flag || countM + countN != 2 * SourceGraphGroups[j].labels.size())
-				continue;
-
-			SegmentGroupFromGraph tmp; //Bugs here
-
-
-		}
-	}*/
+	TargetUnoverlapGraphGroups = TargetGraphGroups;
 }
 
 void CorrFinder::DrawSpecificPart(int index, int SorT)
@@ -2361,9 +2927,6 @@ bool CorrFinder::LoadParialPartFile()
 	ApplySeg(1);
 
 	GetSegFaceNum();
-
-	GenerateSegMeshes(0);
-	GenerateSegMeshes(1);
 
 	return true;
 }

@@ -180,6 +180,93 @@ public:
 		return result;
 	}
 
+	void First2Axis(Vector3d &d1, Vector3d &d2, double &l1, double &l2)
+	{
+		if (sides.x() <= sides.y() && sides.x() <= sides.z())
+		{
+			d1 = axis()[1].normalized();
+			d2 = axis()[2].normalized();
+			l1 = 2 * sides.y() / 3;
+			l2 = 2 * sides.z() / 3;
+			return;
+		}
+		else if (sides.y() <= sides.x() && sides.y() <= sides.z())
+		{
+			d1 = axis()[0].normalized();
+			d2 = axis()[2].normalized();
+			l1 = 2 * sides.x() / 3;
+			l2 = 2 * sides.z() / 3;
+			return;
+		}
+		else
+		{
+			d1 = axis()[0].normalized();
+			d2 = axis()[1].normalized();
+			l1 = 2 * sides.x() / 3;
+			l2 = 2 * sides.y() / 3;
+			return;
+		}
+	}
+
+	double minExtants(Vector3d &d)
+	{
+		if (sides.x() <= sides.y() && sides.x() <= sides.z())
+		{
+			d = axis()[0].normalized();
+			return sides.x() / 2;
+		}	
+		else if (sides.y() <= sides.x() && sides.y() <= sides.z())
+		{
+			d = axis()[1].normalized();
+			return sides.y() / 2;
+		}
+		else
+		{
+			d = axis()[2].normalized();
+			return sides.z() / 2;
+		}
+	}
+
+	double maxExtants(Vector3d &d)
+	{
+		if (sides.x() >= sides.y() && sides.x() >= sides.z())
+		{
+			d = axis()[0].normalized();
+			return sides.x() / 2;
+		}
+		else if (sides.y() >= sides.x() && sides.y() >= sides.z())
+		{
+			d = axis()[1].normalized();
+			return sides.y() / 2;
+		}
+		else
+		{
+			d = axis()[2].normalized();
+			return sides.z() / 2;
+		}
+	}
+
+
+	Vector3d maxMiddleCorner()
+	{
+		if (sides.x() >= sides.y() && sides.x() >= sides.z())
+			return (corners()[0] + corners()[1]) / 2;
+		else if (sides.y() >= sides.x() && sides.y() >= sides.z())
+			return (corners()[0] + corners()[3]) / 2;
+		else
+			return (corners()[0] + corners()[4]) / 2;
+	}
+
+	Vector3d minMiddleCorner()
+	{
+		if (sides.x() <= sides.y() && sides.x() <= sides.z())
+			return (corners()[6] + corners()[7]) / 2;
+		else if (sides.y() <= sides.x() && sides.y() <= sides.z())
+			return (corners()[5] + corners()[7]) / 2;
+		else
+			return (corners()[2] + corners()[7]) / 2;
+	}
+
 	void draw()
 	{
 		if (!isReady) return;

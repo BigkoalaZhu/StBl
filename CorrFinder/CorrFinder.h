@@ -6,7 +6,13 @@
 #include "SurfaceMeshModel.h"
 using namespace SurfaceMesh;
 
-#include "SymmetryAnalysis.h"
+#include "NURBSCurve.h"
+#include "NURBSRectangle.h"
+#include "NurbsDraw.h"
+
+#include "SurfaceMeshPlugins.h"
+#include "SurfaceMeshHelper.h"
+#include "RichParameterSet.h"
 
 struct SegmentGroup {
 	SurfaceMesh::SurfaceMeshModel * members;
@@ -21,6 +27,23 @@ struct SegmentGroupFromGraph {
 	QVector<QVector<Eigen::Vector3d>> SegmentAxis;
 	QVector<QVector<int>> labels;
 	QVector<QVector<int>> joints;
+	QVector<SurfaceMesh::SurfaceMeshModel *> meshes;
+	QVector<int> allseg;
+	int flat;
+	NURBS::NURBSRectangled SheetAxis;
+	SegmentGroupFromGraph() : flat(0){}
+};
+
+struct InitialStructureGraph {
+	QVector<SurfaceMesh::SurfaceMeshModel *> meshes;
+	QVector<QVector<int>> indexes;
+	QVector<QVector<Eigen::Vector3d>> curves;
+	QVector<std::vector<std::vector<Vector3d>>> sheets;
+	QVector<int> flatIndex;
+	QVector<QPair<int, int>> edges;
+	QVector<Eigen::Vector4d> edgeCoordA;
+	QVector<Eigen::Vector4d> edgeCoordB;
+	QVector<QVector<int>> groups;
 };
 
 class CorrFinder
@@ -37,11 +60,21 @@ public:
 	SurfaceMeshModel * getSourceShape(){ return SourceShape; }
 	SurfaceMeshModel * getTargetShape(){ return TargetShape; }
 
+	Eigen::MatrixXd AdjacencySourceGraphGroups;
+	Eigen::MatrixXd AdjacencyTargetGraphGroups;
 	QVector<SegmentGroupFromGraph> SourceGraphGroups;
 	QVector<SegmentGroupFromGraph> TargetGraphGroups;
+	QVector<InitialStructureGraph> SourceStructureGraphs;
+	QVector<InitialStructureGraph> TargetStructureGraphs;
+
+	QVector<SegmentGroupFromGraph> SourceUnoverlapGraphGroups;
+	QVector<SegmentGroupFromGraph> TargetUnoverlapGraphGroups;
 
 	QVector<SegmentGroup> SourceSegGroups;
 	QVector<SegmentGroup> TargetSegGroups;
+
+	InitialStructureGraph SourceStructureGraph;
+	InitialStructureGraph TargetStructureGraph;
 
 private:
 	///////////////////////////////  Functions
@@ -63,6 +96,7 @@ private:
 	bool IsSmoothConnected(QVector<Eigen::Vector3d> PosA, QVector<Eigen::Vector3d> PosB, QVector<Eigen::Vector3d> DirA, QVector<Eigen::Vector3d> DirB, int &type, double threshold = 0.8);
 	bool IsSmoothConnected(SegmentGroupFromGraph groupA, SegmentGroupFromGraph groupB, QVector<int> align, QVector<int> &type, double threshold = 0.0);
 	bool IsAdjacented(SegmentGroupFromGraph groupA, SegmentGroupFromGraph groupB, int SorT, QVector<int> &align);
+	bool IsAdjacented(SegmentGroupFromGraph groupA, SegmentGroupFromGraph groupB, int SorT);
 	SegmentGroupFromGraph MergeGroups(SegmentGroupFromGraph groupA, SegmentGroupFromGraph groupB, QVector<int> type, QVector<int> align);
 	void MergeGraphSegToParts(int SorT);
 	bool IsExistedGroups(QVector<SegmentGroupFromGraph> groups, SegmentGroupFromGraph test);
@@ -70,6 +104,7 @@ private:
 	bool IsFlat(SegmentGroupFromGraph group, int SorT);
 
 	void filterJoints(int SorT);
+	void generateSheetPara();
 
 	SurfaceMeshModel * mergedSeg(QVector<int> indexes, int SorT);
 	bool IsFlatMerge(SegmentGroup groupA, SegmentGroup groupB);
@@ -78,6 +113,13 @@ private:
 	bool IsExistedGroups(QVector<SegmentGroup> groups, SegmentGroup test);
 	void MergeSegToParts(int SorT);
 	SegmentGroup MergeGroups(SegmentGroup groupA, SegmentGroup groupB, int type);
+
+	void buildStructureGraph();
+	void samplePartialGraphs(int step = 3, int totalNum = 100);
+	bool insertNodeInGraph(InitialStructureGraph &graph, SegmentGroupFromGraph node, int SorT);
+
+	NURBS::NURBSRectangled surfaceFit(SurfaceMeshModel * part);
+	std::vector<Vertex> collectRings(SurfaceMeshModel * part, Vertex v, size_t min_nb);
 	
 	///////////////////////////////  Variants
 	double threshouldGC;

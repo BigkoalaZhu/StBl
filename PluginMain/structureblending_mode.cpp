@@ -11,6 +11,11 @@
 
 #include "PlausibilityDistance.h"
 
+#include "nurbs_global.h"
+#include "BoundaryFitting.h"
+#include "writeOBJ.h"
+#include "CorrespondenceEvaluate.h"
+
 structureblending_mode::structureblending_mode()
 {
     this->widget = NULL;
@@ -120,6 +125,7 @@ void structureblending_mode::LoadShapePair()
 		QStringList filenames = dialog.selectedFiles();
 		corrfinder = new CorrFinder;
 		corrfinder->LoadPairFile(filenames[0], hasPart, hasInbetween);
+		pairFile = filenames[0];
 	}
 }
 
@@ -135,9 +141,179 @@ void structureblending_mode::TargetSeleclPart(QModelIndex index)
 	drawArea()->updateGL();
 }
 
+void structureblending_mode::outputGraphXML(QString filename, InitialStructureGraph graph)
+{
+	QDir path_dir;
+	QString filepath = pairFile;
+	filepath.chop(6);
+	if (!path_dir.exists(filepath))
+	{
+		path_dir.mkpath(filepath);
+	}
+	if (!path_dir.exists(filepath + "/" + filename))
+	{
+		path_dir.mkpath(filepath + "/" + filename);
+	}
+
+	filepath += "/" + filename;
+	QFile file(filepath + ".xml");
+	file.open(QIODevice::ReadWrite | QIODevice::Text);
+	QTextStream out(&file);
+	out << "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>" << "\n";
+	out << "<document>" << "\n";
+	for (int i = 0; i < graph.meshes.size(); i++)
+	{
+		out << "<node>" << "\n";
+		out << "\t<id>Part" + QString::number(i) + "</id>" << "\n";
+		if (graph.flatIndex[i] == 0)
+			out << "\t<type>CURVE</type>" << "\n";
+		else
+			out << "\t<type>SHEET</type>" << "\n";
+		out << "\t<mesh>" + filename + "/Part" + QString::number(i) + ".obj</mesh>" << "\n";
+		writeOBJ::wirte(graph.meshes[i], filepath + "/Part" + QString::number(i) + ".obj");
+		out << "\n";
+		out << "\t<controls>\n";
+		if (graph.flatIndex[i] == 0)
+			out << "\t\t<c>" + QString::number(graph.curves[i].size()) + "</c>\n";
+		else
+		{
+			out << "\t\t<c>" + QString::number(graph.sheets[i].size()) + "</c>\n";
+			out << "\t\t<c>" + QString::number(graph.sheets[i][0].size()) + "</c>\n";
+		}
+		out << "\t</controls>\n\n";
+
+		if (graph.flatIndex[i] == 0)
+		{
+			for (int j = 0; j < graph.curves[i].size(); j++)
+				out << "\t<point>" << graph.curves[i][j][0] << " " << graph.curves[i][j][1] << " " << graph.curves[i][j][2] << "</point>\n";
+			out << "\t<weights>";
+			for (int j = 0; j < graph.curves[i].size(); j++)
+				out << "1 ";
+			out << "</weights>\n";
+		}
+		else
+		{
+			for (int j = 0; j < graph.sheets[i].size(); j++)
+				for (int k = 0; k < graph.sheets[i][j].size(); k++)
+				{
+					out << "\t<point>" << graph.sheets[i][j][k][0] << " " << graph.sheets[i][j][k][1] << " " << graph.sheets[i][j][k][2] << "</point>\n";
+				}
+			out << "\n\t<weights>";
+			for (int j = 0; j < graph.sheets[i].size()*graph.sheets[i][0].size(); j++)
+				out << "1 ";
+			out << "</weights>\n";
+		}
+		out << "</node>" << "\n" << "\n";
+	}
+	for (int i = 0; i < graph.edges.size(); i++)
+	{
+		out << "<edge>" << "\n";
+		out << "\t<id>Part" << graph.edges[i].first << ":Part" << graph.edges[i].second << "</id>" << "\n";
+		out << "\t<type>POINT</type>" << "\n\n";
+		out << "\t<n>Part" << graph.edges[i].first << "</n>" << "\n";
+		out << "\t<n>Part" << graph.edges[i].second << "</n>" << "\n";
+		out << "\t<coord>\n";
+		out << "\t\t<uv>0 0 0 0</uv>\n";
+		out << "\t</coord>\n";
+		out << "\t<coord>\n";
+		out << "\t\t<uv>0 0 0 0</uv>\n";
+		out << "\t</coord>\n";
+		out << "</edge>" << "\n\n";
+	}
+	for (int i = 0; i < graph.groups.size(); i++)
+	{
+		out << "<group>" << "\n";
+		for (int j = 0; j < graph.groups[i].size(); j++)
+			out << "\t<n>Part" << graph.groups[i][j] << "</n>" << "\n";
+		out << "</group>" << "\n\n";
+	}
+	out << "</document>" << "\n";
+	file.close();
+
+	Structure::Graph *Graph = new Structure::Graph(filepath + ".xml", 0);
+	Graph->saveToFile(filepath + ".xml", false);
+}
+
 void structureblending_mode::GeneratePartSet()
 {
+//	CorrespondenceEvaluate ce("C:/Users/cza68/Documents/CodingWork/StructureBlending/StBl/PluginMain/testData/testpair/SourceShape.xml", "C:/Users/cza68/Documents/CodingWork/StructureBlending/StBl/PluginMain/testData/testpair/TargetShape.xml");
+//	ce.initialGraph();
+/*	QVector<QString> sourcec;
+	QVector<QString> targetc;
+	sourcec.push_back("Part3");
+	sourcec.push_back("Part16");
+	sourcec.push_back("Part17");
+	sourcec.push_back("Part23");
+	targetc.push_back("Part14");
+	targetc.push_back("Part16");
+	targetc.push_back("Part15");
+	targetc.push_back("Part13");
+	targetc.push_back("Part9");
+	targetc.push_back("Part5");
+	targetc.push_back("Part6");
+	targetc.push_back("Part1");
+	targetc.push_back("Part10");
+	targetc.push_back("Part3");
+	ce.assignCorr(sourcec, targetc);
+	ce.generateInbetween(0.5);*/
 	corrfinder->GeneratePartSet();
+/*	for (int i = 0; i < corrfinder->SourceStructureGraph.meshes.size(); i++)
+	{
+		if (corrfinder->SourceStructureGraph.flatIndex[i] == 1)
+		{
+			SurfaceMeshModel * tmpMesh = new SurfaceMeshModel;
+			tmpMesh = corrfinder->SourceStructureGraph.meshes[i]->clone();
+			FilterPlugin * matPlugin = pluginManager()->getFilter("Skeleton | Voronoi based MAT");
+			RichParameterSet * mat_params = new RichParameterSet;
+			matPlugin->initParameters(mat_params);
+			document()->addModel(tmpMesh);
+			document()->setSelectedModel(tmpMesh);
+			matPlugin->applyFilter(mat_params);
+			for (int j = 0; j < 1; j++)
+			{
+				FilterPlugin * mcfPlugin = pluginManager()->getFilter("Skeleton | MCF Skeletonization");
+
+				RichParameterSet * mcf_params = new RichParameterSet;
+				mcfPlugin->initParameters(mcf_params);
+				mcfPlugin->applyFilter(mcf_params);
+			}
+			
+			std::vector<std::vector<Vector3d>> cpts = surfaceFit(tmpMesh).mCtrlPoint;
+			corrfinder->SourceStructureGraph.sheets[i] = cpts;
+			document()->deleteModel(tmpMesh);
+		}
+	}
+
+	for (int i = 0; i < corrfinder->TargetStructureGraph.meshes.size(); i++)
+	{
+		if (corrfinder->TargetStructureGraph.flatIndex[i] == 1)
+		{
+			SurfaceMeshModel * tmpMesh = new SurfaceMeshModel;
+			tmpMesh = corrfinder->TargetStructureGraph.meshes[i]->clone();
+			FilterPlugin * matPlugin = pluginManager()->getFilter("Skeleton | Voronoi based MAT");
+			RichParameterSet * mat_params = new RichParameterSet;
+			matPlugin->initParameters(mat_params);
+			document()->addModel(tmpMesh);
+			document()->setSelectedModel(tmpMesh);
+			matPlugin->applyFilter(mat_params);
+			for (int j = 0; j < 1; j++)
+			{
+				FilterPlugin * mcfPlugin = pluginManager()->getFilter("Skeleton | MCF Skeletonization");
+
+				RichParameterSet * mcf_params = new RichParameterSet;
+				mcfPlugin->initParameters(mcf_params);
+				mcfPlugin->applyFilter(mcf_params);
+			}
+			
+			std::vector<std::vector<Vector3d>> cpts = surfaceFit(tmpMesh).mCtrlPoint;
+			corrfinder->TargetStructureGraph.sheets[i] = cpts;
+			document()->deleteModel(tmpMesh);
+		}
+	}*/
+
+	outputGraphXML("SourceShape", corrfinder->SourceStructureGraph);
+	outputGraphXML("TargetShape", corrfinder->TargetStructureGraph);
+
 	QStringList SourcePartList, TargetPartList;
 	for (int i = 0; i < corrfinder->SourceGraphGroups.size(); i++)
 	{
@@ -300,6 +476,256 @@ void structureblending_mode::Filtering()
 void structureblending_mode::CameraPathChange(QString path)
 {
 	CameraPath = path;
+}
+
+std::vector<Vertex> structureblending_mode::collectRings(SurfaceMeshModel * part, Vertex v, size_t min_nb)
+{
+	std::vector<Vertex> all;
+	std::vector<Vertex> current_ring, next_ring;
+	SurfaceMeshModel::Vertex_property<int> visited_map = part->vertex_property<int>("v:visit_map", -1);
+
+	//initialize
+	visited_map[v] = 0;
+	current_ring.push_back(v);
+	all.push_back(v);
+
+	int i = 1;
+
+	while ((all.size() < min_nb) && (current_ring.size() != 0)){
+		// collect i-th ring
+		std::vector<Vertex>::iterator it = current_ring.begin(), ite = current_ring.end();
+
+		for (; it != ite; it++){
+			// push neighbors of 
+			SurfaceMeshModel::Halfedge_around_vertex_circulator hedgeb = part->halfedges(*it), hedgee = hedgeb;
+			do{
+				Vertex vj = part->to_vertex(hedgeb);
+
+				if (visited_map[vj] == -1){
+					visited_map[vj] = i;
+					next_ring.push_back(vj);
+					all.push_back(vj);
+				}
+
+				++hedgeb;
+			} while (hedgeb != hedgee);
+		}
+
+		//next round must be launched from p_next_ring...
+		current_ring = next_ring;
+		next_ring.clear();
+
+		i++;
+	}
+
+	//clean up
+	part->remove_vertex_property(visited_map);
+
+	return all;
+}
+
+NURBS::NURBSRectangled structureblending_mode::surfaceFit(SurfaceMeshModel * part)
+{
+	Surface_mesh::Vertex_property<Vector3> points = part->vertex_property<Vector3>("v:point");
+
+	/// Pick a side by clustering normals
+
+	// 1) Find edge with flat dihedral angle
+	SurfaceMeshModel::Vertex_property<double> vals = part->vertex_property<double>("v:vals", 0);
+	foreach(Vertex v, part->vertices()){
+		double sum = 0.0;
+		foreach(Vertex v, collectRings(part, v, 12)){
+			foreach(Halfedge h, part->onering_hedges(v)){
+				sum += abs(calc_dihedral_angle(part, h));
+			}
+		}
+		vals[v] = sum;
+	}
+
+	double minSum = DBL_MAX;
+	Vertex minVert;
+	foreach(Vertex v, part->vertices()){
+		if (vals[v] < minSum){
+			minSum = vals[v];
+			minVert = v;
+		}
+	}
+	Halfedge startEdge = part->halfedge(minVert);
+
+	// 2) Grow region by comparing difference of adjacent dihedral angles
+	double angleThreshold = deg_to_rad(40.0);
+
+	SurfaceMesh::Model::Vertex_property<bool> vvisited = part->add_vertex_property<bool>("v:visited", false);
+
+	QStack<SurfaceMesh::Model::Vertex> to_visit;
+	to_visit.push(part->to_vertex(startEdge));
+
+	while (!to_visit.empty())
+	{
+		Vertex cur_v = to_visit.pop();
+		if (vvisited[cur_v]) continue;
+		vvisited[cur_v] = true;
+
+		// Sum of angles around
+		double sumAngles = 0.0;
+		foreach(Halfedge hj, part->onering_hedges(cur_v)){
+			sumAngles += abs(calc_dihedral_angle(part, hj));
+		}
+
+		foreach(Halfedge hj, part->onering_hedges(cur_v))
+		{
+			Vertex vj = part->to_vertex(hj);
+			if (sumAngles < angleThreshold)
+				to_visit.push(vj);
+			else
+				vvisited[vj];
+		}
+	}
+
+	// Get filtered inner vertices of selected side
+	int shrink_count = 2;
+	std::set<Vertex> inner;
+	std::set<Vertex> border;
+	for (int i = 0; i < shrink_count; i++)
+	{
+		std::set<Vertex> all_points;
+		foreach(Vertex v, part->vertices())
+			if (vvisited[v]) all_points.insert(v);
+
+		border.clear();
+		foreach(Vertex v, part->vertices()){
+			if (vvisited[v]){
+				foreach(Halfedge hj, part->onering_hedges(v)){
+					Vertex vj = part->to_vertex(hj);
+					if (!vvisited[vj])
+						border.insert(vj);
+				}
+			}
+		}
+
+		inner.clear();
+		std::set_difference(all_points.begin(), all_points.end(), border.begin(), border.end(),
+			std::inserter(inner, inner.end()));
+
+		// Shrink one level
+		foreach(Vertex vv, border){
+			foreach(Halfedge hj, part->onering_hedges(vv))
+				vvisited[part->to_vertex(hj)] = false;
+		}
+	}
+
+	SurfaceMesh::Model * submesh = NULL;
+
+	bool isOpen = false;
+	foreach(Vertex v, part->vertices()){
+		if (part->is_boundary(v)){
+			isOpen = true;
+			break;
+		}
+	}
+
+	if (!isOpen)
+	{
+		// Collect inner faces
+		std::set<Face> innerFaces;
+		std::set<Vertex> inFacesVerts;
+		foreach(Vertex v, inner)
+		{
+			foreach(Halfedge hj, part->onering_hedges(v)){
+				Face f = part->face(hj);
+				innerFaces.insert(f);
+				Surface_mesh::Vertex_around_face_circulator vit = part->vertices(f), vend = vit;
+				do{ inFacesVerts.insert(Vertex(vit)); } while (++vit != vend);
+			}
+		}
+
+		// Create sub-mesh
+		submesh = new SurfaceMesh::Model("SideFlat.obj", "SideFlat");
+
+		// Add vertices
+		std::map<Vertex, Vertex> vmap;
+		foreach(Vertex v, inFacesVerts){
+			vmap[v] = Vertex(vmap.size());
+			submesh->add_vertex(points[v]);
+		}
+
+		// Add faces
+		foreach(Face f, innerFaces){
+			std::vector<Vertex> verts;
+			Surface_mesh::Vertex_around_face_circulator vit = part->vertices(f), vend = vit;
+			do{ verts.push_back(Vertex(vit)); } while (++vit != vend);
+			submesh->add_triangle(vmap[verts[0]], vmap[verts[1]], vmap[verts[2]]);
+		}
+	}
+	else
+	{
+		submesh = part;
+	}
+
+	{
+		//ModifiedButterfly subdiv;
+		//subdiv.subdivide((*(Surface_mesh*)submesh),1);
+	}
+
+
+	submesh->isVisible = false;
+
+	Vector3VertexProperty sub_points = submesh->vertex_property<Vector3>("v:point");
+
+		// Smoothing
+/*	{
+	int numIteration = 3;
+	bool protectBorders = true;
+
+	Surface_mesh::Vertex_property<Point> newPositions = submesh->vertex_property<Point>("v:new_point", Vector3(0, 0, 0));
+	Surface_mesh::Vertex_around_vertex_circulator vvit, vvend;
+
+	// This method uses the basic equal weights Laplacian operator
+	for (int iteration = 0; iteration < numIteration; iteration++)
+	{
+	Surface_mesh::Vertex_iterator vit, vend = submesh->vertices_end();
+
+	// Original positions, for boundary
+	for (vit = submesh->vertices_begin(); vit != vend; ++vit)
+	newPositions[vit] = sub_points[vit];
+
+	// Compute Laplacian
+	for (vit = submesh->vertices_begin(); vit != vend; ++vit)
+	{
+	if (!protectBorders || (protectBorders && !submesh->is_boundary(vit)))
+	{
+	newPositions[vit] = Point(0, 0, 0);
+
+	// Sum up neighbors
+	vvit = vvend = submesh->vertices(vit);
+	do{ newPositions[vit] += sub_points[vvit]; } while (++vvit != vvend);
+
+	// Average it
+	newPositions[vit] /= submesh->valence(vit);
+	}
+	}
+
+	// Set vertices to final position
+	for (vit = submesh->vertices_begin(); vit != vend; ++vit)
+	sub_points[vit] = newPositions[vit];
+	}
+
+	submesh->remove_vertex_property(newPositions);
+	}*/
+
+	/// ==================
+	// Fit rectangle
+
+	BoundaryFitting bf((SurfaceMeshModel*)submesh, 6);
+
+
+	Array2D_Vector3 cp = bf.lines;
+
+	if (!cp.size()) return NURBS::NURBSRectangled::createSheet(Vector3d(0.0, 0.0, 0.0), Vector3d(0.01, 0.01, 0.01));
+
+	Array2D_Real cw(cp.size(), Array1D_Real(cp.front().size(), 1.0));
+	int degree = 3;
+	return NURBS::NURBSRectangled(cp, cw, degree, degree, false, false, true, true);
 }
 
 void structureblending_mode::LoadSingleMesh()

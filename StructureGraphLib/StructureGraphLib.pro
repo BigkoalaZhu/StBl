@@ -25,16 +25,16 @@ TARGET = StructureGraphLib
 DESTDIR = $$PWD/$$CFG/lib
 
 # NURBS library
-LIBS += -L$$PWD/../ExternalTools/NURBS/$$CFG/lib -lNURBS
-INCLUDEPATH += ../ExternalTools/NURBS
+LIBS += -L$$PWD/../NURBS/$$CFG/lib -lNURBS
+INCLUDEPATH += ../NURBS
 
 # Surface Reconstruction library
-LIBS += -L$$PWD/../ExternalTools/Reconstruction/$$CFG/lib -lReconstruction
-INCLUDEPATH += ../ExternalTools/Reconstruction
+LIBS += -L$$PWD/../Reconstruction/$$CFG/lib -lReconstruction
+INCLUDEPATH += ../Reconstruction
 
 # Splat Rendering library
-LIBS += -L$$PWD/../ExternalTools/GlSplatRendererLib/$$CFG/lib -lGlSplatRendererLib
-INCLUDEPATH += ../ExternalTools/GlSplatRendererLib
+LIBS += -L$$PWD/../GlSplatRendererLib/$$CFG/lib -lGlSplatRendererLib
+INCLUDEPATH += ../GlSplatRendererLib
 
 HEADERS += StructureNode.h \
     StructureGraph.h \

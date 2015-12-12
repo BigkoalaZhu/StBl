@@ -32,7 +32,7 @@ namespace Structure{
 	
 		// Constructors
 		Graph();
-		Graph(QString fileName);
+		Graph(QString fileName, int flag = 1);
 		Graph(const Graph & other);
 		~Graph();
 		void init();
@@ -97,7 +97,7 @@ namespace Structure{
 
 		// Input / Output
 		void saveToFile(QString fileName, bool isOutParts = true) const;
-		void loadFromFile(QString fileName);
+		void loadFromFile(QString fileName, int flag = 1);
 
 		void exportAsOBJ( QString filename );
 

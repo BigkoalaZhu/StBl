@@ -50,6 +50,11 @@ private:
 	CorrFinder * corrfinder;
 	bool hasPart;
 	bool hasInbetween;
+	QString pairFile;
+
+	NURBS::NURBSRectangled surfaceFit(SurfaceMeshModel * part);
+	std::vector<Vertex> collectRings(SurfaceMeshModel * part, Vertex v, size_t min_nb);
+	void outputGraphXML(QString filename, InitialStructureGraph graph);
 
 public slots:
     void LoadSingleObject();

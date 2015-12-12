@@ -17,15 +17,25 @@ CONFIG(debug, debug|release) {CFG = debug} else {CFG = release}
 LIBS += -L$$PWD/../UtilityLib/$$CFG -lUtilityLib
 INCLUDEPATH += ../UtilityLib
 
+# NURBS library
+LIBS += -L$$PWD/../NURBS/$$CFG/lib -lNURBS
+INCLUDEPATH += ../NURBS
+
+# Structure Graph Library
+LIBS += -L$$PWD/../StructureGraphLib/$$CFG/lib -lStructureGraphLib
+INCLUDEPATH += ../StructureGraphLib
+
 HEADERS += \
     CorrFinder.h \
-	SymmetryAnalysis.h \
 	SegGraph.h \
+	BoundaryFitting.h \
+	BoundaryFittingGlobal.h \
+	nurbs_global.h \
 	
 SOURCES += \
 	CorrFinder.cpp \
-	SymmetryAnalysis.cpp \
 	SegGraph.cpp \
+	BoundaryFitting.cpp \
 	
 FORMS += \
 

@@ -29,6 +29,14 @@ INCLUDEPATH += ../UtilityLib
 LIBS += -L$$PWD/../PlausibilityAnalysis/$$CFG/lib -lPlausibilityAnalysis
 INCLUDEPATH += ../PlausibilityAnalysis
 
+# NURBS library
+LIBS += -L$$PWD/../NURBS/$$CFG/lib -lNURBS
+INCLUDEPATH += ../NURBS
+
+# Structure Graph Library
+LIBS += -L$$PWD/../StructureGraphLib/$$CFG/lib -lStructureGraphLib
+INCLUDEPATH += ../StructureGraphLib
+
 # OpenCV
 CONFIG(debug, debug|release) {
     LIBS += -L$(OPENCV_LIB) -lopencv_ts300d -lopencv_world300d

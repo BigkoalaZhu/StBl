@@ -9,3 +9,8 @@ SUBDIRS += PlausibilityAnalysis
 SUBDIRS += BiSHDistance
 SUBDIRS += CorrFinder
 
+SUBDIRS += Reconstruction
+SUBDIRS += StructureGraphLib
+SUBDIRS += NURBS
+SUBDIRS += GlSplatRendererLib
+
